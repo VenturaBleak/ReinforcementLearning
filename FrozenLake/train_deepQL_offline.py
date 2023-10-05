@@ -12,7 +12,6 @@ import os
 from utils import PolynomialEpsilonDecay
 from model import QNetwork
 
-
 class ReplayBuffer:
     def __init__(self, capacity):
         self.capacity = capacity
@@ -41,65 +40,66 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buffer)
 
-def offline_train(environment, episodes, alpha, gamma, epsilon_decay_scheme, buffer_size=10000, batch_size=64):
+def offline_train(environment, episodes, alpha, gamma, epsilon_decay_scheme, repeats, buffer_size=10000, batch_size=64):
     net = QNetwork(environment.observation_space.n, environment.action_space.n).to(device)
     optimizer = optim.Adam(net.parameters(), lr=alpha)
     criterion = nn.MSELoss()
-    buffer = ReplayBuffer(buffer_size)
 
-    outcomes = []
-    epsilon = epsilon_decay_scheme.start_epsilon
-    buffer_save_counter = 0
+    for cycle in trange(repeats, desc="Training Cycles", unit="cycle"):
+        buffer = ReplayBuffer(buffer_size)
+        outcomes = []
+        epsilon = epsilon_decay_scheme.start_epsilon
 
-    for episode in trange(episodes, desc="Training", unit="episodes"):
-        state = environment.reset()
-        state = state[0]
-        done = False
-        outcomes.append("Failure")
+        # Interaction Phase
+        for _ in range(episodes):
+            state = environment.reset()
+            state = state[0]
+            done = False
 
-        while not done:
-            state_tensor = torch.eye(environment.observation_space.n)[state].unsqueeze(0).to(device)
+            while not done:
+                state_tensor = torch.eye(environment.observation_space.n)[state].unsqueeze(0).to(device)
 
-            if np.random.random() < epsilon:
-                action = environment.action_space.sample()
-            else:
-                with torch.no_grad():
-                    action = torch.argmax(net(state_tensor)).item()
+                if np.random.random() < epsilon:
+                    action = environment.action_space.sample()
+                else:
+                    with torch.no_grad():
+                        action = torch.argmax(net(state_tensor)).item()
 
-            new_state, reward, done, _, info = environment.step(action)
-            buffer.push(state, action, reward, new_state, done)
-            state = new_state
+                new_state, reward, done, _, info = environment.step(action)
+                buffer.push(state, action, reward, new_state, done)
+                state = new_state
 
-            if reward:
-                outcomes[-1] = "Success"
+                if reward:
+                    outcomes.append("Success")
+                else:
+                    outcomes.append("Failure")
 
-        if len(buffer) == buffer_size:
-            for _ in range(buffer_size // batch_size):
-                states, actions, rewards, next_states, dones = buffer.sample(batch_size)
+        # Learning Phase
+        for _ in range((buffer_size // batch_size) + 1):  # Ensure total experiences used exceed 10000
+            states, actions, rewards, next_states, dones = buffer.sample(batch_size)
 
-                states = torch.eye(environment.observation_space.n)[states].float().to(device)
-                next_states = torch.eye(environment.observation_space.n)[next_states].float().to(device)
-                target_rewards = rewards + gamma * torch.max(net(next_states), dim=1)[0] * (1 - dones.float())
-                predicted_rewards = net(states).gather(1, actions.unsqueeze(-1)).squeeze(-1)
+            states = torch.eye(environment.observation_space.n)[states].float().to(device)
+            next_states = torch.eye(environment.observation_space.n)[next_states].float().to(device)
+            target_rewards = rewards + gamma * torch.max(net(next_states), dim=1)[0] * (1 - dones.float())
+            predicted_rewards = net(states).gather(1, actions.unsqueeze(-1)).squeeze(-1)
 
-                loss = criterion(predicted_rewards, target_rewards)
+            loss = criterion(predicted_rewards, target_rewards)
 
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-            # Save the buffer contents to a file
-            # make dir if not exists
-            if not os.path.exists("data"):
-                os.makedirs("data")
-            buffer_save_path = os.path.join("data", f"replay_buffer_{buffer_save_counter}.pkl")
-            with open(buffer_save_path, "wb") as f:
-                pickle.dump(buffer.buffer, f)
+        # Save the buffer contents to a file
+        # make dir if not exists
+        if not os.path.exists("data"):
+            os.makedirs("data")
+        buffer_save_path = os.path.join("data", f"replay_buffer_{cycle}.pkl")
+        with open(buffer_save_path, "wb") as f:
+            pickle.dump(buffer.buffer, f)
 
-            buffer_save_counter += 1
-            buffer.clear()  # Empty the buffer
+        epsilon = epsilon_decay_scheme.step()
 
-            epsilon = epsilon_decay_scheme.step()
+        print(epsilon)
 
     return net, outcomes
 
@@ -109,6 +109,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Offline training with Deep Q-learning using neural network and replay buffer.")
     parser.add_argument("--model_path", type=str, default="model.pth", help="Path to save the neural network model.")
+    parser.add_argument("--repeats", type=int, default=5, help="Number of times to repeat the training process.")
     parser.add_argument("--episodes", type=int, default=2000, help="Total number of training episodes.")
     parser.add_argument("--alpha", type=float, default=1e-4, help="Learning rate.")
     parser.add_argument("--gamma", type=float, default=0.95, help="Discount factor.")
@@ -117,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("--power", type=float, default=1.5, help="Power for the polynomial decay.")
     args = parser.parse_args()
 
-    epsilon_decay_scheme = PolynomialEpsilonDecay(args.start_epsilon, args.end_epsilon, args.episodes, args.power)
+    epsilon_decay_scheme = PolynomialEpsilonDecay(args.start_epsilon, args.end_epsilon, args.repeats, args.power)
 
     # Load the map from the file
     with open("frozen_lake_map.pkl", "rb") as f:
@@ -125,6 +126,6 @@ if __name__ == "__main__":
 
     # Use the loaded map to create the environment
     env = gym.make('FrozenLake-v1', is_slippery=False, desc=loaded_map)
-    model, outcomes = offline_train(env, args.episodes, args.alpha, args.gamma, epsilon_decay_scheme)
+    model, outcomes = offline_train(env, args.episodes, args.alpha, args.gamma, epsilon_decay_scheme, args.repeats)
 
     torch.save(model.state_dict(), args.model_path)

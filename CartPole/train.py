@@ -10,13 +10,7 @@ from tqdm import trange
 from utils import PolynomialEpsilonDecay
 from model import QNetwork
 
-
-def online_train(environment, episodes, alpha, gamma, epsilon_decay_scheme):
-    # Input and output dimensions
-    input_dim = environment.observation_space.shape[0]
-    output_dim = environment.action_space.n
-    Qnet = QNetwork(input_dim, output_dim)
-
+def online_train(environment, Qnet, episodes, alpha, gamma, epsilon_decay_scheme):
     optimizer = optim.Adam(Qnet.parameters(), lr=alpha)
     criterion = nn.MSELoss()
 
@@ -70,18 +64,31 @@ def online_train(environment, episodes, alpha, gamma, epsilon_decay_scheme):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Online training with Q-learning using neural network.")
-    parser.add_argument("--model_path", type=str, default=os.path.join("data","DLmodel.pth"), help="Path to save the neural network model.")
-    parser.add_argument("--episodes", type=int, default=5000, help="Total number of training episodes.")
-    parser.add_argument("--alpha", type=float, default=1e-4, help="Learning rate.")
-    parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor.")
-    parser.add_argument("--start_epsilon", type=float, default=1.0, help="Starting exploration rate.")
-    parser.add_argument("--end_epsilon", type=float, default=1e-5, help="Minimum exploration rate.")
+    parser.add_argument("--model_path", type=str, default=os.path.join("data","DLmodel.pth"), help="Path to save or load the neural network model.")
+    parser.add_argument("--load_model", action="store_true", default=False, help="Specify to load a pretrained model for continued training.")
+    parser.add_argument("--episodes", type=int, default=10000, help="Total number of training episodes.")
+    parser.add_argument("--alpha", type=float, default=1e-3, help="Learning rate.")
+    parser.add_argument("--gamma", type=float, default=0.999, help="Discount factor.")
+    parser.add_argument("--start_epsilon", type=float, default=1, help="Starting exploration rate.")
+    parser.add_argument("--end_epsilon", type=float, default=1e-3, help="Minimum exploration rate.")
     parser.add_argument("--power", type=float, default=1.5, help="Power for the polynomial decay.")
     args = parser.parse_args()
 
     epsilon_decay_scheme = PolynomialEpsilonDecay(args.start_epsilon, args.end_epsilon, args.episodes, args.power)
 
     env = gym.make('CartPole-v1')
-    model, outcomes = online_train(env, args.episodes, args.alpha, args.gamma, epsilon_decay_scheme)
+
+    # Define Qnet structure
+    input_dim = env.observation_space.shape[0]
+    output_dim = env.action_space.n
+    Qnet = QNetwork(input_dim, output_dim)
+
+    # Load the model if specified
+    if args.load_model:
+        Qnet.load_state_dict(torch.load(args.model_path))
+        print(f"Loaded model from {args.model_path}")
+
+    model, outcomes = online_train(env, Qnet, args.episodes, args.alpha, args.gamma, epsilon_decay_scheme)
 
     torch.save(model.state_dict(), args.model_path)
+    print(f"Saved model to {args.model_path}")

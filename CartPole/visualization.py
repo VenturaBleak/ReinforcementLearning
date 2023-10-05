@@ -28,10 +28,9 @@ def simulate(environment, model, episodes, use_model=True):
     average_reward = total_reward / episodes
     print(f"Average reward over {episodes} episodes: {average_reward}")
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Simulate the agent's behavior on CartPole.")
-    parser.add_argument("--episodes", type=int, default=100, help="Total number of simulation episodes.")
+    parser.add_argument("--episodes", type=int, default=50, help="Total number of simulation episodes.")
     parser.add_argument("--use_model", action="store_true",
                         help="Use trained neural network for decisions. Default is random.", default=True)
     parser.add_argument("--model_path", type=str, default=os.path.join("data","DLmodel.pth"), help="Path to the saved neural network model.")

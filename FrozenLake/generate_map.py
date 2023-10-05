@@ -3,7 +3,7 @@ import pickle
 import os
 
 seed = 42  # Any integer seed you choose
-random_map = generate_random_map(size=3)
+random_map = generate_random_map(size=5)
 
 # make dir if not exists -> data
 if not os.path.exists("data"):

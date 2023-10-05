@@ -49,7 +49,7 @@ class ReplayBuffer:
     def __len__(self):
         return min(self.position, self.capacity)
 
-def offline_train(environment, alpha, gamma, epsilon_decay_scheme, repeats, buffer_size=5000, batch_size=64):
+def offline_train(environment, episodes, alpha, gamma, epsilon_decay_scheme, repeats, buffer_size=40000, batch_size=32):
     net = QNetwork(environment.observation_space.n, environment.action_space.n).to(device)
     optimizer = optim.Adam(net.parameters(), lr=alpha)
     criterion = nn.MSELoss()
@@ -60,7 +60,7 @@ def offline_train(environment, alpha, gamma, epsilon_decay_scheme, repeats, buff
         epsilon = epsilon_decay_scheme.start_epsilon
 
         # Interaction Phase
-        for _ in range(buffer_size):
+        for _ in range(episodes):
             state = environment.reset()
             state = state[0]
             done = False
@@ -124,12 +124,13 @@ if __name__ == "__main__":
         description="Offline training with Deep Q-learning using neural network and replay buffer.")
     parser.add_argument("--model_path", type=str, default=os.path.join("data","DLmodel_offline.pth"),
                         help="Path to save the neural network model.")
-    parser.add_argument("--repeats", type=int, default=5, help="Number of times to repeat the training process.")
-    parser.add_argument("--alpha", type=float, default=1e-4, help="Learning rate.")
+    parser.add_argument("--repeats", type=int, default=10, help="Number of times to repeat the training process.")
+    parser.add_argument("--episodes", type=int, default=2000, help="Total number of training episodes.")
+    parser.add_argument("--alpha", type=float, default=1e-3, help="Learning rate.")
     parser.add_argument("--gamma", type=float, default=0.95, help="Discount factor.")
     parser.add_argument("--start_epsilon", type=float, default=1.0, help="Starting exploration rate.")
     parser.add_argument("--end_epsilon", type=float, default=1e-2, help="Minimum exploration rate.")
-    parser.add_argument("--power", type=float, default=1.5, help="Power for the polynomial decay.")
+    parser.add_argument("--power", type=float, default=1.2, help="Power for the polynomial decay.")
     args = parser.parse_args()
 
     epsilon_decay_scheme = PolynomialEpsilonDecay(args.start_epsilon, args.end_epsilon, args.repeats, args.power)
@@ -140,6 +141,5 @@ if __name__ == "__main__":
 
     # Use the loaded map to create the environment
     env = gym.make('FrozenLake-v1', is_slippery=False, desc=loaded_map)
-    model, outcomes = offline_train(env, args.alpha, args.gamma, epsilon_decay_scheme, args.repeats)
-
+    model, outcomes = offline_train(env, args.episodes, args.alpha, args.gamma, epsilon_decay_scheme, args.repeats)
     torch.save(model.state_dict(), args.model_path)

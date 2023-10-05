@@ -1,7 +1,7 @@
 # Reinforcement Learning: Frozen Lake
 
 ## Overview
-This repository contains implementations of both Q-learning (QL) and Deep Q-learning (DeepQL) to solve the Frozen Lake environment from OpenAI's Gym library. 
+This repository contains implementations of both Q-learning (QL) and Deep Q-learning (DeepQL; both online and offline) to solve the Frozen Lake environment from OpenAI's Gym library. 
 
 ### Environment: Frozen Lake
 

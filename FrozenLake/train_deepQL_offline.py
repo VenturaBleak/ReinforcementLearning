@@ -47,9 +47,13 @@ class ReplayBuffer:
         self.position = 0
 
     def __len__(self):
-        return min(self.position, self.capacity)
+        if self.position < self.capacity:
+            return self.position
+        else:
+            return self.capacity
 
-def offline_train(environment, episodes, alpha, gamma, epsilon_decay_scheme, repeats, buffer_size=40000, batch_size=32):
+
+def offline_train(environment, episodes, alpha, gamma, epsilon_decay_scheme, repeats, buffer_size=50000, batch_size=32):
     net = QNetwork(environment.observation_space.n, environment.action_space.n).to(device)
     optimizer = optim.Adam(net.parameters(), lr=alpha)
     criterion = nn.MSELoss()
@@ -60,7 +64,8 @@ def offline_train(environment, episodes, alpha, gamma, epsilon_decay_scheme, rep
         epsilon = epsilon_decay_scheme.start_epsilon
 
         # Interaction Phase
-        for _ in range(episodes):
+        while buffer.__len__() + 1 < buffer_size:
+            # print(buffer.__len__() + 1, buffer_size)
             state = environment.reset()
             state = state[0]
             done = False

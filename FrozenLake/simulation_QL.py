@@ -2,6 +2,7 @@ import numpy as np
 import gym
 import argparse
 import pickle
+import os
 
 def simulate(environment, qtable, episodes, use_qtable=True):
     nb_success = 0
@@ -30,13 +31,13 @@ if __name__ == "__main__":
     # use_qtable is a flag, so it doesn't need a value
     parser.add_argument("--use_qtable", action="store_true", help="Use trained Q-table for decisions. Default is random.",
                         default=True)
-    parser.add_argument("--qtable_path", type=str, default="qtable.pkl", help="Path to the saved Q-table.")
+    parser.add_argument("--qtable_path", type=str, default=os.path.join("data","qtable.pkl"), help="Path to the saved Q-table.")
     parser.add_argument("--render_mode", action="store_true", default="human", help="Render the environment during simulation.")
 
     args = parser.parse_args()
 
     # Load the map from the file
-    with open("frozen_lake_map.pkl", "rb") as f:
+    with open(os.path.join("data","frozen_lake_map.pkl"), "rb") as f:
         loaded_map = pickle.load(f)
 
     # Use the loaded map to create the environment

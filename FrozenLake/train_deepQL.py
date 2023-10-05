@@ -1,3 +1,5 @@
+import os.path
+
 import gym
 import numpy as np
 import argparse
@@ -34,6 +36,8 @@ def online_train(environment, episodes, alpha, gamma, epsilon_decay_scheme):
                     action = torch.argmax(net(state_tensor)).item()
 
             new_state, reward, done, _, info = environment.step(action)
+            # one-hot encoding of the new state, and unsqueeze to add a batch dimension
+            # the result is a tensor of shape (1, env.observation_space.n)
             new_state_tensor = torch.eye(environment.observation_space.n)[new_state].unsqueeze(0)
 
             target = reward
@@ -58,10 +62,11 @@ def online_train(environment, episodes, alpha, gamma, epsilon_decay_scheme):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Online training with Q-learning using neural network.")
-    parser.add_argument("--model_path", type=str, default="model.pth", help="Path to save the neural network model.")
+    parser.add_argument("--model_path", type=str, default=os.path.join("data","DLmodel.pth"),
+                        help="Path to save the neural network model.")
     parser.add_argument("--episodes", type=int, default=2000, help="Total number of training episodes.")
     parser.add_argument("--alpha", type=float, default=1e-4, help="Learning rate.")
-    parser.add_argument("--gamma", type=float, default=0.95, help="Discount factor.")
+    parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor.")
     parser.add_argument("--start_epsilon", type=float, default=1.0, help="Starting exploration rate.")
     parser.add_argument("--end_epsilon", type=float, default=1e-5, help="Minimum exploration rate.")
     parser.add_argument("--power", type=float, default=1.5, help="Power for the polynomial decay.")
@@ -70,7 +75,7 @@ if __name__ == "__main__":
     epsilon_decay_scheme = PolynomialEpsilonDecay(args.start_epsilon, args.end_epsilon, args.episodes, args.power)
 
     # Load the map from the file
-    with open("frozen_lake_map.pkl", "rb") as f:
+    with open(os.path.join("data","frozen_lake_map.pkl"), "rb") as f:
         loaded_map = pickle.load(f)
 
     # Use the loaded map to create the environment

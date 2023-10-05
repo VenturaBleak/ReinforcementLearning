@@ -2,6 +2,7 @@ import gym
 import argparse
 import torch
 import pickle
+import os
 
 from model import QNetwork
 
@@ -34,14 +35,14 @@ if __name__ == "__main__":
     parser.add_argument("--episodes", type=int, default=100, help="Total number of simulation episodes.")
     parser.add_argument("--use_model", action="store_true",
                         help="Use trained neural network for decisions. Default is random.", default=True)
-    parser.add_argument("--model_path", type=str, default="model.pth", help="Path to the saved neural network model.")
+    parser.add_argument("--model_path", type=str, default=os.path.join("data","DLmodel.pth"), help="Path to the saved neural network model.")
     parser.add_argument("--render_mode", type=str, default="human",
                         help="Render mode for the environment: 'human' or None.")
 
     args = parser.parse_args()
 
     # Load the map from the file
-    with open("frozen_lake_map.pkl", "rb") as f:
+    with open(os.path.join("data","frozen_lake_map.pkl"), "rb") as f:
         loaded_map = pickle.load(f)
 
     # Use the loaded map to create the environment

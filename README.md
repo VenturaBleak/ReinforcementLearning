@@ -7,7 +7,7 @@ This repository contains implementations of both Q-learning (QL) and Deep Q-lear
 
 Frozen Lake is a grid-world environment where an agent must navigate from a start position to a goal without falling into holes. The lake is made up of four types of blocks: Start (S), Goal (G), Frozen (F), and Hole (H). The agent must reach the Goal (G) from the Start (S) without falling into a Hole (H). The catch is that the Frozen (F) blocks are slippery, so the agent won't always move in the intended direction.
 
-![Frozen Lake](https://www.gymlibrary.dev/_images/frozen_lake.gif)
+![Frozen Lake](https://github.com/VenturaHaze/ReinforcementLearning/blob/master/frozen_lake.gif)
 
 Detailed description of the Frozen Lake environment can be found [here](https://www.gymlibrary.dev/environments/toy_text/frozen_lake/).
 

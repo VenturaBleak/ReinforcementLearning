@@ -1,1 +1,0 @@
-"OK, now use ellers algorithm for maze generation. to this end, create a new script called maze generator whcih includes an object that then later can be called to return an array of the generated maze. In the end, the maze should be quadratic, have a start (S), a goal (G), and '.' as "

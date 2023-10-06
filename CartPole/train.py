@@ -10,17 +10,18 @@ from tqdm import trange
 from utils import PolynomialEpsilonDecay
 from model import QNetwork
 
-def online_train(environment, Qnet, episodes, alpha, gamma, epsilon_decay_scheme):
+def online_train(environment, Qnet, episodes, alpha, gamma, epsilon_decay_scheme, model_path):
     optimizer = optim.Adam(Qnet.parameters(), lr=alpha)
     criterion = nn.MSELoss()
 
     rewards = []
+    best_reward = 0
     epsilon = epsilon_decay_scheme.start_epsilon
 
     # Create the progress bar
     t = trange(episodes, desc="Simulating", unit="episodes")
 
-    for _ in t:
+    for episode in t:
         state = environment.reset()[0]
         episode_reward = 0  # Track the total reward for each episode
         done = False
@@ -60,13 +61,22 @@ def online_train(environment, Qnet, episodes, alpha, gamma, epsilon_decay_scheme
             avg_reward_last_100 = sum(rewards[-100:]) / 100
             t.set_postfix(Avg_Reward = avg_reward_last_100)
 
+            if avg_reward_last_100 > best_reward and episode % 100 == 0:
+                best_reward = avg_reward_last_100
+
+                torch.save(Qnet.state_dict(), model_path)
+                print(f"Saved model at episode {episode} with average reward of {avg_reward_last_100}")
+
+
+
+
     return Qnet, rewards
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Online training with Q-learning using neural network.")
     parser.add_argument("--model_path", type=str, default=os.path.join("data","DLmodel.pth"), help="Path to save or load the neural network model.")
     parser.add_argument("--load_model", action="store_true", default=False, help="Specify to load a pretrained model for continued training.")
-    parser.add_argument("--episodes", type=int, default=10000, help="Total number of training episodes.")
+    parser.add_argument("--episodes", type=int, default=5000, help="Total number of training episodes.")
     parser.add_argument("--alpha", type=float, default=1e-3, help="Learning rate.")
     parser.add_argument("--gamma", type=float, default=0.999, help="Discount factor.")
     parser.add_argument("--start_epsilon", type=float, default=1, help="Starting exploration rate.")
@@ -88,7 +98,4 @@ if __name__ == "__main__":
         Qnet.load_state_dict(torch.load(args.model_path))
         print(f"Loaded model from {args.model_path}")
 
-    model, outcomes = online_train(env, Qnet, args.episodes, args.alpha, args.gamma, epsilon_decay_scheme)
-
-    torch.save(model.state_dict(), args.model_path)
-    print(f"Saved model to {args.model_path}")
+    model, outcomes = online_train(env, Qnet, args.episodes, args.alpha, args.gamma, epsilon_decay_scheme, args.model_path)

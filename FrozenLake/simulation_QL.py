@@ -1,5 +1,5 @@
 import numpy as np
-import gym
+import gymnasium as gym
 import argparse
 import pickle
 import os
@@ -19,6 +19,7 @@ def simulate(environment, qtable, episodes, use_qtable=True):
                 action = environment.action_space.sample()
 
             new_state, reward, done, _, info = environment.step(action)
+            print(f"Action: {action}, Reward: {reward}, New state: {new_state}")
             state = new_state
             nb_success += reward
 

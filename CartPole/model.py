@@ -7,15 +7,17 @@ class QNetwork(nn.Module):
         super(QNetwork, self).__init__()
 
         self.network = nn.Sequential(
-            nn.Linear(input_dim, 24),
+            nn.Linear(input_dim, 128),
             nn.ReLU(),
-            nn.Linear(24, 24),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(24, 24),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(24, 24),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(24, output_dim)
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, output_dim)
         )
 
     def forward(self, x):

@@ -1,6 +1,6 @@
 import os.path
 
-import gym
+import gymnasium as gym
 import numpy as np
 import argparse
 import torch

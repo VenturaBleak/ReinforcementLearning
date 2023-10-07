@@ -17,7 +17,7 @@ if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="Simulate the agent's behavior on FrozenLake.")
     parser.add_argument("--learning_rate", type=float, default=1e-3, help="Total number of simulation episodes.")
-    parser.add_argument("--total_timesteps", type=int, default=100000, help="Total number of time.")
+    parser.add_argument("--total_timesteps", type=int, default=200000, help="Total number of time.")
     args = parser.parse_args()
 
     # Create the environment
@@ -31,7 +31,7 @@ if __name__ == "__main__":
                 verbose=1, seed=42)
 
     # Train the agent and save it
-    model.learn(total_timesteps=args.total_timesteps, log_interval=4)
+    model.learn(total_timesteps=args.total_timesteps, log_interval=500)
     model.save("dqn_mazegame")
 
     # remove to demonstrate saving and loading
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # print('Initial observation:', obs)
     env.render()
 
-    for episode in trange(50):
+    for episode in trange(500):
         terminated = False
         truncated = False
         while not terminated and not truncated:

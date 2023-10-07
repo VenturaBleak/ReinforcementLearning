@@ -9,7 +9,7 @@ import time
 from pyamaze import maze
 
 class MazeGameEnv(gymnasium.Env):
-    def __init__(self, generation_frequency=np.inf, min_maze_size=5, max_maze_size=5):
+    def __init__(self, generation_frequency=np.inf, min_maze_size=8, max_maze_size=8):
         super(MazeGameEnv, self).__init__()
 
         # Set maze generation parameters
@@ -57,14 +57,6 @@ class MazeGameEnv(gymnasium.Env):
             np.random.seed(seed)
 
         self.reset_counter += 1
-
-        # Randomize start and goal positions
-        self.start_pos = self._random_position()
-        self.goal_pos = self._random_position()
-
-        # Ensure start and goal positions are not the same
-        while self.start_pos == self.goal_pos:
-            self.goal_pos = self._random_position()
 
         # Generate a new maze if the counter reaches the generation frequency
         if self.reset_counter % self.generation_frequency == 0:
@@ -128,29 +120,29 @@ class MazeGameEnv(gymnasium.Env):
         self.facing_direction = self.facing_directions[action]
 
         # cost of moving
-        reward = -1.0
+        reward = -1.0/self.num_rows
 
         # Check validity
         if self._is_valid_position(tuple(new_pos)):
             self.current_pos = tuple(new_pos)
             reward += 0.0  # Neutral reward for a valid move
         else:
-            reward += 0.0  # Neutral reward for an invalid move
+            reward -= 1.0/self.num_rows  # Negative reward for an invalid move
             self.current_pos = original_pos  # Reset to original position
 
         # Goal check
         if self.current_pos == self.goal_pos:
-            reward += 100.0  # Large reward for reaching the goal
+            reward += 1.0  # Large reward for reaching the goal
             terminated = True
         else:
             terminated = False
 
         # Check for truncation
         self.steps_since_reset += 1  # Increment the step counter
-        truncated = self.steps_since_reset > (self.num_rows ** 3)
+        truncated = self.steps_since_reset > (self.num_rows ** 2)
 
         if truncated:
-            reward -= 200
+            reward -= 1.0
 
         # Save the current vision matrix and vision coordinates after every step
         self.vision_matrix, _ = self._get_vision()  # We only need the matrix here

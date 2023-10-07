@@ -1,4 +1,4 @@
-"""
+"""""
 adapted from: https://medium.com/data-science-in-your-pocket/how-to-create-a-custom-openai-gym-environment-with-codes-fb5de015de3c
 """
 import gymnasium
@@ -8,36 +8,25 @@ import pygame
 import time
 
 class PlainFieldEnv(gymnasium.Env):
-    def __init__(self, field_size=8, vision_size=5):
+    def __init__(self, field_size=6, vision_size=7):
         super(PlainFieldEnv, self).__init__()
 
-        # Field dimensions
-        self.num_rows = field_size
-        self.num_cols = field_size
+        # assert, min field size is vision size * 2 + 1
+        # assert field_size >= vision_size * 2 + 1, "field size must be at least vision size * 2 + 1"
 
+        # Field dimensions, including the buffer
+        self.buffer_size = int(np.ceil(vision_size / 2.0))
+        self.num_rows = 30 + 2 * self.buffer_size
+        self.num_cols = 50 + 2 * self.buffer_size
         self.vision_size = vision_size
-
-        # Randomize start and goal positions
-        self.start_pos = self._random_position()
-        self.goal_pos = self._random_position()
-
-        # Ensure start and goal positions are not the same
-        while self.start_pos == self.goal_pos:
-            self.goal_pos = self._random_position()
-
-        self.current_pos = self.start_pos
 
         # Set facing directions
         self.facing_directions = ['N', 'S', 'W', 'E']
-        self.facing_direction = np.random.choice(self.facing_directions)
 
-        # Define action and observation space
-        self.action_space = spaces.Discrete(4)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(3, 3), dtype=np.int8)
-
+        # Initialize the step counter
         self.steps_since_reset = 0
 
-        # intially, the display is not initialized
+        # Flag the display as not initialized
         self.display_initialized = False
 
         # Reward dictionary
@@ -63,43 +52,111 @@ class PlainFieldEnv(gymnasium.Env):
                 'none': 0,
                 'start': 1,
                 'goal': 2
+            },
+            'playing_area': {
+                'playing_field': 0,
+                'buffer': 1
             }
         }
 
-        # Initialize the 3D map
-        self.map = np.zeros((3, self.num_rows, self.num_cols), dtype=np.int8)
+        # Define action and observation space
+        self.action_space = spaces.Discrete(4)  # 4 actions: Up, Down, Left, Right
 
-        # Populate the map for start and goal positions
-        self.map[0][self.start_pos[0] - 1][self.start_pos[1] - 1] = self.cell_states['object_layer']['agent']
-        self.map[1][self.start_pos[0] - 1][self.start_pos[1] - 1] = self.cell_states['blocked_layer']['blocked']
-        self.map[2][self.start_pos[0] - 1][self.start_pos[1] - 1] = self.cell_states['objective_layer']['start']
-        self.map[2][self.goal_pos[0] - 1][self.goal_pos[1] - 1] = self.cell_states['objective_layer']['goal']
+        # Adjust the observation space for the agent's vision
+        max_val = max([max(self.cell_states[layer].values()) for layer in self.cell_states])
+        self.observation_space = spaces.Box(low=0, high=max_val, shape=(3, vision_size, vision_size), dtype=np.int8)
+
+        # Initialize the 4D map to zeros
+        self.map = np.zeros((4, self.num_rows, self.num_cols), dtype=np.int8)
+
+        # Set a flag to ensure reset is called before using the environment
+        self.initialized = False
+
+        # Initialize the 4D map to zeros
+        self.map = np.zeros((4, self.num_rows, self.num_cols), dtype=np.int8)
+
+        # Fill the entire map with empty and not blocked by default
+        self.map[0, :, :] = self.cell_states['object_layer']['empty']
+        self.map[1, :, :] = self.cell_states['blocked_layer']['not_blocked']
+
+        # Define buffer as obstacles and blocked
+        # Top buffer
+        self.map[0, :self.buffer_size, :] = self.cell_states['object_layer']['obstacle']
+        self.map[1, :self.buffer_size, :] = self.cell_states['blocked_layer']['blocked']
+        # Bottom buffer
+        self.map[0, -self.buffer_size:, :] = self.cell_states['object_layer']['obstacle']
+        self.map[1, -self.buffer_size:, :] = self.cell_states['blocked_layer']['blocked']
+        # Left buffer
+        self.map[0, :, :self.buffer_size] = self.cell_states['object_layer']['obstacle']
+        self.map[1, :, :self.buffer_size] = self.cell_states['blocked_layer']['blocked']
+        # Right buffer
+        self.map[0, :, -self.buffer_size:] = self.cell_states['object_layer']['obstacle']
+        self.map[1, :, -self.buffer_size:] = self.cell_states['blocked_layer']['blocked']
+
+        # define everything that is not blocked as playing field
+        self.map[3][self.map[1] == self.cell_states['blocked_layer']['not_blocked']] = self.cell_states['playing_area']['playing_field']
+
+        # define everything that is blocked as buffer
+        self.map[3][self.map[1] == self.cell_states['blocked_layer']['blocked']] = self.cell_states['playing_area']['buffer']
+
+    def _random_position(self):
+        """ returns: random position in the playing field, that is not blocked"""
+        valid_positions = list(np.argwhere((self.map[1] == self.cell_states['blocked_layer']['not_blocked']) &
+                                           (self.map[3] == self.cell_states['playing_area']['playing_field'])))
+        return tuple(valid_positions[np.random.choice(len(valid_positions))])
+
+    def procedural_generation(self):
+        # random facing direction
+        self.facing_direction = np.random.choice(self.facing_directions)
+
+        if self.initialized:
+            # clear old agent position
+            self.map[0][self.current_pos[0]][self.current_pos[1]] = self.cell_states['object_layer']['empty']
+            self.map[1][self.current_pos[0]][self.current_pos[1]] = self.cell_states['blocked_layer']['not_blocked']
+
+            # clear old start and goal position
+            self.map[2][self.start_pos[0]][self.start_pos[1]] = self.cell_states['objective_layer']['none']
+            self.map[2][self.goal_pos[0]][self.goal_pos[1]] = self.cell_states['objective_layer']['none']
+
+        # random start and goal position
+        self.start_pos = self._random_position()
+        self.goal_pos = self._random_position()
+        while self.start_pos == self.goal_pos:
+            self.goal_pos = self._random_position()
+
+        # set start and goal position in the objective layer
+        self.map[2][self.start_pos[0]][self.start_pos[1]] = self.cell_states['objective_layer']['start']
+        self.map[2][self.goal_pos[0]][self.goal_pos[1]] = self.cell_states['objective_layer']['goal']
+
+        # spawn agent at start position
+        self.map[0][self.start_pos[0]][self.start_pos[1]] = self.cell_states['object_layer']['agent']
+        self.map[1][self.start_pos[0]][self.start_pos[1]] = self.cell_states['blocked_layer']['not_blocked']
+
+        # set current position to start position
+        self.current_pos = self.start_pos
+
+        # Remember to update the initialized flag at the end
+        self.initialized = True
 
     def reset(self, seed=None, options=None):
         if seed is not None:
             np.random.seed(seed)
 
-        # Clear the old agent position
-        self.map[0][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['object_layer']['empty']
-        self.map[1][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['blocked_layer']['not_blocked']
+        self.procedural_generation()
 
-        # Update the agent's new position
-        self.current_pos = self.start_pos
-        self.facing_direction = np.random.choice(self.facing_directions)
-
-        # Set agent's position in the map
-        self.map[0][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['object_layer']['agent']
-        self.map[1][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['blocked_layer']['blocked']
-
+        # Reset the step counter
         self.steps_since_reset = 0
+
+        # # Validate the generated map
+        validator = self.MapValidator(self)
+        validator.validate()
+
         return self._get_vision(), {}
 
-    def _random_position(self):
-        x = np.random.randint(1, self.num_rows + 1)
-        y = np.random.randint(1, self.num_cols + 1)
-        return (x, y)
-
     def step(self, action):
+        if not self.initialized:
+            raise RuntimeError("You must call reset() before using the environment!")
+
         original_pos = self.current_pos
         new_pos = list(self.current_pos)
         if action == 0:  # Up
@@ -123,15 +180,15 @@ class PlainFieldEnv(gymnasium.Env):
             self.current_pos = original_pos  # Reset to original position
         else:
             # Clear old agent position
-            self.map[0][original_pos[0] - 1][original_pos[1] - 1] = self.cell_states['object_layer']['empty']
-            self.map[1][original_pos[0] - 1][original_pos[1] - 1] = self.cell_states['blocked_layer']['not_blocked']
+            self.map[0][original_pos[0]][original_pos[1]] = self.cell_states['object_layer']['empty']
+            self.map[1][original_pos[0]][original_pos[1]] = self.cell_states['blocked_layer']['not_blocked']
 
             # Update the agent's current position
             self.current_pos = tuple(new_pos)
 
             # Set new agent position on the map
-            self.map[0][new_pos[0] - 1][new_pos[1] - 1] = self.cell_states['object_layer']['agent']
-            self.map[1][new_pos[0] - 1][new_pos[1] - 1] = self.cell_states['blocked_layer']['blocked']
+            self.map[0][new_pos[0]][new_pos[1]] = self.cell_states['object_layer']['agent']
+            self.map[1][new_pos[0]][new_pos[1]] = self.cell_states['blocked_layer']['blocked']
 
         # Goal check
         if self.current_pos == self.goal_pos:
@@ -150,35 +207,46 @@ class PlainFieldEnv(gymnasium.Env):
         return self._get_vision(), reward, terminated, truncated, {}
 
     def _is_valid_position(self, pos):
-        # Check if within bounds
-        if not (1 <= pos[0] <= self.num_rows and 1 <= pos[1] <= self.num_cols):
+        # Check if not blocked
+        if self.map[1][pos[0]][pos[1]] == self.cell_states['blocked_layer']['blocked']:
             return False
 
-        # Check if the cell is not blocked
-        if self.map[1][pos[0] - 1][pos[1] - 1] == self.cell_states['blocked_layer']['blocked']:
+        # Check if not in the buffer
+        if self.map[3][pos[0]][pos[1]] == self.cell_states['playing_area']['buffer']:
             return False
 
         return True
 
     def _get_vision(self):
         half_vision = self.vision_size // 2
-        vision = np.zeros((self.vision_size, self.vision_size), dtype=np.int8)
+        vision = np.zeros((3, self.vision_size, self.vision_size), dtype=np.int8)
         vision_coordinates = []  # To store coordinates of cells in the agent's vision
 
-        for dx in range(-half_vision, half_vision + 1):
-            for dy in range(-half_vision, half_vision + 1):
-                x, y = self.current_pos[0] + dx, self.current_pos[1] + dy
+        # Determine the boundaries of the vision in the actual field
+        start_row = max(0, self.current_pos[0] - half_vision)
+        end_row = min(self.num_rows, self.current_pos[0] + half_vision + 1)
+
+        start_col = max(0, self.current_pos[1] - half_vision)
+        end_col = min(self.num_cols, self.current_pos[1] + half_vision + 1)
+
+        for x in range(start_row, end_row):
+            for y in range(start_col, end_col):
+                # Compute the corresponding position in the vision grid
+                vx = x - self.current_pos[0] + half_vision
+                vy = y - self.current_pos[1] + half_vision
+
+                # Transfer values from the field to the vision grid
+                vision[:, vx, vy] = self.map[:3, x, y]
+
+                # Append to vision coordinates
                 vision_coordinates.append((x, y))
-                if 0 <= x <= self.num_rows and 0 <= y <= self.num_cols:  # Check if it's within the grid
-                    if (x, y) == self.goal_pos:
-                        vision[dx + half_vision, dy + half_vision] = 1  # 1 denotes the goal
 
         return vision, vision_coordinates
 
     def _setup_display(self):
         pygame.init()
-        self.cell_size = 40
-        self.screen = pygame.display.set_mode((self.num_cols * self.cell_size, self.num_rows * self.cell_size))
+        self.cell_size = 20
+        self.screen = pygame.display.set_mode((self.num_cols * self.cell_size+5, self.num_rows * self.cell_size))
         self.display_initialized = True
 
     def render(self):
@@ -237,13 +305,13 @@ class PlainFieldEnv(gymnasium.Env):
 
                 # Render based on objective layer
                 if objective_state == self.cell_states['objective_layer']['start']:
-                    pygame.draw.rect(self.screen, (0, 255, 0), (
-                    cell_left + cell_margin, cell_top + cell_margin, self.cell_size - 2 * cell_margin,
-                    self.cell_size - 2 * cell_margin), 3)
+                    pygame.draw.circle(self.screen, (0, 255, 0),
+                                       (int(cell_left + self.cell_size / 2), int(cell_top + self.cell_size / 2)),
+                                       int(self.cell_size / 4))
                 elif objective_state == self.cell_states['objective_layer']['goal']:
-                    pygame.draw.rect(self.screen, (255, 0, 0), (
-                    cell_left + cell_margin, cell_top + cell_margin, self.cell_size - 2 * cell_margin,
-                    self.cell_size - 2 * cell_margin), 3)
+                    pygame.draw.circle(self.screen, (255, 0, 0),
+                                       (int(cell_left + self.cell_size / 2), int(cell_top + self.cell_size / 2)),
+                                       int(self.cell_size / 4))
 
         # Draw agent's vision using the stored vision matrix
         vision_surface = pygame.Surface((self.cell_size, self.cell_size), pygame.SRCALPHA)
@@ -254,8 +322,44 @@ class PlainFieldEnv(gymnasium.Env):
 
         for x, y in vision_coordinates:
             if 1 <= x <= self.num_rows and 1 <= y <= self.num_cols:  # Ensure we are in the boundary
-                cell_left = (y - 1) * self.cell_size
-                cell_top = (x - 1) * self.cell_size
+                cell_left = (y) * self.cell_size
+                cell_top = (x) * self.cell_size
                 self.screen.blit(vision_surface, (cell_left, cell_top))
 
         pygame.display.update()
+
+    class MapValidator:
+        def __init__(self, env):
+            self.env = env
+
+        def validate(self):
+            self._validate_buffer()
+            self._validate_start_goal_positions()
+
+        def _validate_buffer(self):
+            # Top buffer
+            assert np.all(self.env.map[0, :self.env.buffer_size, :] == self.env.cell_states['object_layer']['obstacle'])
+            # Bottom buffer
+            assert np.all(
+                self.env.map[0, -self.env.buffer_size:, :] == self.env.cell_states['object_layer']['obstacle'])
+
+            non_obstacle_indices = np.argwhere(
+                self.env.map[0, :self.env.buffer_size, :] != self.env.cell_states['object_layer']['obstacle'])
+            print("Indices of non-obstacle values:", non_obstacle_indices)
+            for index in non_obstacle_indices:
+                print("Value at index", tuple(index), ":", self.env.map[0, tuple(index)])
+
+
+            # Left buffer (excluding the cells already covered by top and bottom buffers)
+            assert np.all(self.env.map[0, self.env.buffer_size:-self.env.buffer_size, :self.env.buffer_size] ==
+                          self.env.cell_states['object_layer']['obstacle'])
+            # Right buffer (excluding the cells already covered by top and bottom buffers)
+            assert np.all(self.env.map[0, self.env.buffer_size:-self.env.buffer_size, -self.env.buffer_size:] ==
+                          self.env.cell_states['object_layer']['obstacle'])
+
+        def _validate_start_goal_positions(self):
+            # Check if start and goal positions are within the buffer
+            assert self.env.buffer_size <= self.env.start_pos[0] < self.env.num_rows - self.env.buffer_size
+            assert self.env.buffer_size <= self.env.start_pos[1] < self.env.num_cols - self.env.buffer_size
+            assert self.env.buffer_size <= self.env.goal_pos[0] < self.env.num_rows - self.env.buffer_size
+            assert self.env.buffer_size <= self.env.goal_pos[1] < self.env.num_cols - self.env.buffer_size

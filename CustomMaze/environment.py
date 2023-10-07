@@ -342,7 +342,7 @@ class MazeGameEnv(gymnasium.Env):
             for cell in row:
                 print(cell)
             print("\n")
-        time.sleep(20)
+        time.sleep(100)
         return descriptions
 
     def _describe_cell(self, cell, coord):

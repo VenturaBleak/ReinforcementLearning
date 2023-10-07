@@ -48,11 +48,49 @@ class PlainFieldEnv(gymnasium.Env):
             'truncated': -1.0
         }
 
+        # Introducing new cell states
+        self.cell_states = {
+            'object_layer': {
+                'empty': 0,
+                'agent': 1,
+                'obstacle': 2
+            },
+            'blocked_layer': {
+                'not_blocked': 0,
+                'blocked': 1
+            },
+            'objective_layer': {
+                'none': 0,
+                'start': 1,
+                'goal': 2
+            }
+        }
+
+        # Initialize the 3D map
+        self.map = np.zeros((3, self.num_rows, self.num_cols), dtype=np.int8)
+
+        # Populate the map for start and goal positions
+        self.map[0][self.start_pos[0] - 1][self.start_pos[1] - 1] = self.cell_states['object_layer']['agent']
+        self.map[1][self.start_pos[0] - 1][self.start_pos[1] - 1] = self.cell_states['blocked_layer']['blocked']
+        self.map[2][self.start_pos[0] - 1][self.start_pos[1] - 1] = self.cell_states['objective_layer']['start']
+        self.map[2][self.goal_pos[0] - 1][self.goal_pos[1] - 1] = self.cell_states['objective_layer']['goal']
+
     def reset(self, seed=None, options=None):
         if seed is not None:
             np.random.seed(seed)
+
+        # Clear the old agent position
+        self.map[0][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['object_layer']['empty']
+        self.map[1][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['blocked_layer']['not_blocked']
+
+        # Update the agent's new position
         self.current_pos = self.start_pos
         self.facing_direction = np.random.choice(self.facing_directions)
+
+        # Set agent's position in the map
+        self.map[0][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['object_layer']['agent']
+        self.map[1][self.current_pos[0] - 1][self.current_pos[1] - 1] = self.cell_states['blocked_layer']['blocked']
+
         self.steps_since_reset = 0
         return self._get_vision(), {}
 
@@ -84,7 +122,16 @@ class PlainFieldEnv(gymnasium.Env):
             reward += self.rewards['invalid_move']  # Note: we're adding because the reward is negative
             self.current_pos = original_pos  # Reset to original position
         else:
+            # Clear old agent position
+            self.map[0][original_pos[0] - 1][original_pos[1] - 1] = self.cell_states['object_layer']['empty']
+            self.map[1][original_pos[0] - 1][original_pos[1] - 1] = self.cell_states['blocked_layer']['not_blocked']
+
+            # Update the agent's current position
             self.current_pos = tuple(new_pos)
+
+            # Set new agent position on the map
+            self.map[0][new_pos[0] - 1][new_pos[1] - 1] = self.cell_states['object_layer']['agent']
+            self.map[1][new_pos[0] - 1][new_pos[1] - 1] = self.cell_states['blocked_layer']['blocked']
 
         # Goal check
         if self.current_pos == self.goal_pos:
@@ -103,7 +150,15 @@ class PlainFieldEnv(gymnasium.Env):
         return self._get_vision(), reward, terminated, truncated, {}
 
     def _is_valid_position(self, pos):
-        return 1 <= pos[0] <= self.num_rows and 1 <= pos[1] <= self.num_cols
+        # Check if within bounds
+        if not (1 <= pos[0] <= self.num_rows and 1 <= pos[1] <= self.num_cols):
+            return False
+
+        # Check if the cell is not blocked
+        if self.map[1][pos[0] - 1][pos[1] - 1] == self.cell_states['blocked_layer']['blocked']:
+            return False
+
+        return True
 
     def _get_vision(self):
         half_vision = self.vision_size // 2
@@ -139,21 +194,56 @@ class PlainFieldEnv(gymnasium.Env):
                          line_width)
 
         cell_margin = 3
+        # Use the map to decide how to draw each cell
         for row in range(1, self.num_rows + 1):
             for col in range(1, self.num_cols + 1):
                 cell_left = (col - 1) * self.cell_size
                 cell_top = (row - 1) * self.cell_size
-                cell = (row, col)
 
-                # Draw start and goal positions
-                if cell == self.start_pos:
-                    pygame.draw.rect(self.screen, (0, 255, 0), (cell_left + cell_margin, cell_top + cell_margin,
-                                                                self.cell_size - cell_margin,
-                                                                self.cell_size - cell_margin), 3)
-                elif cell == self.goal_pos:
-                    pygame.draw.rect(self.screen, (255, 0, 0), (cell_left + cell_margin, cell_top + cell_margin,
-                                                                self.cell_size - cell_margin,
-                                                                self.cell_size - cell_margin), 3)
+                # Get states from map layers
+                object_state = self.map[0][row - 1][col - 1]
+                blocked_state = self.map[1][row - 1][col - 1]
+                objective_state = self.map[2][row - 1][col - 1]
+
+                # Render based on object layer
+                if object_state == self.cell_states['object_layer']['agent']:
+                    # Get center of cell
+                    center_x = int(cell_left + self.cell_size / 2)
+                    center_y = int(cell_top + self.cell_size / 2)
+                    half_size = int(self.cell_size / 4)
+
+                    # Depending on the facing direction, adjust the agent's rectangle vertices
+                    if self.facing_direction == 'N':
+                        triangle_vertices = [(center_x, center_y - half_size),
+                                             (center_x - half_size, center_y + half_size),
+                                             (center_x + half_size, center_y + half_size)]
+                    elif self.facing_direction == 'E':
+                        triangle_vertices = [(center_x + half_size, center_y),
+                                             (center_x - half_size, center_y - half_size),
+                                             (center_x - half_size, center_y + half_size)]
+                    elif self.facing_direction == 'S':
+                        triangle_vertices = [(center_x, center_y + half_size),
+                                             (center_x - half_size, center_y - half_size),
+                                             (center_x + half_size, center_y - half_size)]
+                    else:  # 'W'
+                        triangle_vertices = [(center_x - half_size, center_y),
+                                             (center_x + half_size, center_y - half_size),
+                                             (center_x + half_size, center_y + half_size)]
+
+                    pygame.draw.polygon(self.screen, (0, 0, 255),triangle_vertices)
+
+                elif object_state == self.cell_states['object_layer']['obstacle']:
+                    pygame.draw.rect(self.screen, (0, 0, 0), (cell_left, cell_top, self.cell_size, self.cell_size))
+
+                # Render based on objective layer
+                if objective_state == self.cell_states['objective_layer']['start']:
+                    pygame.draw.rect(self.screen, (0, 255, 0), (
+                    cell_left + cell_margin, cell_top + cell_margin, self.cell_size - 2 * cell_margin,
+                    self.cell_size - 2 * cell_margin), 3)
+                elif objective_state == self.cell_states['objective_layer']['goal']:
+                    pygame.draw.rect(self.screen, (255, 0, 0), (
+                    cell_left + cell_margin, cell_top + cell_margin, self.cell_size - 2 * cell_margin,
+                    self.cell_size - 2 * cell_margin), 3)
 
         # Draw agent's vision using the stored vision matrix
         vision_surface = pygame.Surface((self.cell_size, self.cell_size), pygame.SRCALPHA)
@@ -167,31 +257,5 @@ class PlainFieldEnv(gymnasium.Env):
                 cell_left = (y - 1) * self.cell_size
                 cell_top = (x - 1) * self.cell_size
                 self.screen.blit(vision_surface, (cell_left, cell_top))
-
-        # Draw agent at its current position
-        cell_left = (self.current_pos[1] - 1) * self.cell_size
-        cell_top = (self.current_pos[0] - 1) * self.cell_size
-        center_x = int(cell_left + self.cell_size / 2)
-        center_y = int(cell_top + self.cell_size / 2)
-        half_size = int(self.cell_size / 3)
-
-        if self.facing_direction == 'N':
-            triangle_vertices = [(center_x, center_y - half_size),
-                                 (center_x - half_size, center_y + half_size),
-                                 (center_x + half_size, center_y + half_size)]
-        elif self.facing_direction == 'E':
-            triangle_vertices = [(center_x + half_size, center_y),
-                                 (center_x - half_size, center_y - half_size),
-                                 (center_x - half_size, center_y + half_size)]
-        elif self.facing_direction == 'S':
-            triangle_vertices = [(center_x, center_y + half_size),
-                                 (center_x - half_size, center_y - half_size),
-                                 (center_x + half_size, center_y - half_size)]
-        else:  # 'W'
-            triangle_vertices = [(center_x - half_size, center_y),
-                                 (center_x + half_size, center_y - half_size),
-                                 (center_x + half_size, center_y + half_size)]
-
-        pygame.draw.polygon(self.screen, (0, 0, 255), triangle_vertices)
 
         pygame.display.update()

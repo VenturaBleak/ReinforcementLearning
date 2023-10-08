@@ -2,16 +2,21 @@ import os
 import numpy as np
 import pickle
 
-
 class InvestmentData:
-    def __init__(self):
-        self.filepath = os.path.join(os.getcwd(), "data", "investment_data.pkl")
+    def __init__(self, filename, test=False):
+        # placeholder variables
+        self.tickers = None
+        self.dates = None
         self.ticker_to_idx = {}
         self.date_to_idx = {}
         self.data_array = None
         self.metadata = None
 
-        # Defining axes names
+        # filename & filepath
+        self.filename = filename
+        self.filepath = os.path.join(os.getcwd(), "data", f"{self.filename}.pkl")
+
+        # Defining axes names, of the 3D numpy array
         self.axes_names = {
             0: 'Date',
             1: 'Ticker',
@@ -25,16 +30,27 @@ class InvestmentData:
         }
 
     def initial_save(self, dataframe, metadata):
-        tickers = dataframe['Ticker'].unique()
-        dates = dataframe.index.unique()
+        """Saves the data object to a pickle file.
+
+        Args:
+            dataframe (pandas.DataFrame): The dataframe to save.
+            metadata (pandas.DataFrame): The metadata to save.
+
+        Returns:
+            None
+        """
+
+        # get tickers
+        self.tickers = dataframe['Ticker'].unique()
+        self.dates = dataframe.index.unique()
 
         # Construct Mapping Dictionaries
-        self.ticker_to_idx = {ticker: i for i, ticker in enumerate(tickers)}
-        self.date_to_idx = {date: i for i, date in enumerate(dates)}
+        self.ticker_to_idx = {ticker: i for i, ticker in enumerate(self.tickers)}
+        self.date_to_idx = {date: i for i, date in enumerate(self.dates)}
 
         # Constructing the 3D numpy array
-        num_dates = len(dates)
-        num_tickers = len(tickers)
+        num_dates = len(self.dates)
+        num_tickers = len(self.tickers)
         self.data_array = np.zeros((num_dates, num_tickers, 2), dtype=np.float64)
 
         for idx, row in dataframe.iterrows():
@@ -49,6 +65,15 @@ class InvestmentData:
         self.save()
 
     def query(self, date, ticker):
+        """Returns the values for a given date and ticker.
+
+        Args:
+            date (datetime): Date to query.
+            ticker (str): Ticker to query.
+
+        Returns:
+            tuple: (price, volume)
+        """
         date_idx = self.date_to_idx.get(date, -1)
         ticker_idx = self.ticker_to_idx.get(ticker, -1)
         if date_idx == -1 or ticker_idx == -1:

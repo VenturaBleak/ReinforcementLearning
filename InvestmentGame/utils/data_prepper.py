@@ -7,6 +7,7 @@ import numpy as np
 class DataPrepper:
     def __init__(self, period_length):
         self.period_length = period_length
+        self.data_filename = "investment_data"
 
     def get_sp500_tickers(self):
         table = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
@@ -128,11 +129,11 @@ class DataPrepper:
         assert merged_data["Ticker"].unique().tolist().sort() == valid_tickers.sort()
 
         # Initializing and saving data
-        investment_data_obj = InvestmentData()
+        investment_data_obj = InvestmentData(self.data_filename)
         investment_data_obj.initial_save(merged_data, self.fetch_metadata(valid_tickers))
 
     def is_data_prepped(self):
-        return os.path.exists(os.path.join("data", "data.csv"))
+        return os.path.exists(os.path.join("data", f"{self.data_filename}.pkl"))
 
     def run(self):
         if not self.is_data_prepped():

@@ -19,7 +19,7 @@ class Stock:
         self.cursor = 0
 
         if is_treasury:
-            self.name = 'TRES'
+            self.name = 'FED'
             self.price = 100.0
             self.mean_annual = 0
             self.daily_mean = ((self.mean_annual / 100 + 1) ** (1 / self.period_length) - 1)

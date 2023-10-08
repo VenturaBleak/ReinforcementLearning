@@ -33,7 +33,7 @@ class TopBar:
     def draw(self):
         pygame.draw.rect(self.screen, self.styling.MID_GRAY, (0, 0, self.styling.SCREEN_WIDTH, self.height))
         self._draw_text(f"Time Steps: {self.game.timesteps}", self.styling.BLACK, 50, 10)  # <- Use game.timesteps here
-        self._draw_text(f"Available Cash: ${self.simulation.money:.2f}", self.styling.BLACK, 200, 10)
+        self._draw_text(f"Available Cash: ${self.simulation.portfolio.assets[0].balance:.2f}", self.styling.BLACK, 200, 10)
 
     def _draw_text(self, text, color, x, y):
         img = self.styling.font.render(text, True, color)
@@ -58,17 +58,16 @@ class StockTable:
             self._draw_cell(header, self.styling.BLACK, 50 + index * self.CELL_WIDTH, 60, bold=True, bgcolor=self.styling.MID_GRAY)
 
         y_offset = 100
-        for stock in self.simulation.stocks:
-            profit_loss = (stock.price - stock.initial_price) * stock.invested
+        for stock in self.simulation.portfolio.stocks:
             columns = [
                 stock.name,
                 f"${stock.price:.2f}",
-                f"${stock.invested:.2f}",
-                f"${profit_loss:.2f}" if abs(profit_loss) > 0.01 else "$0.00",
-                f"{stock.mean_annual:.2f}%",
-                f"{stock.rolling_mean_annualized*100:.2f}%" if stock.rolling_mean_annualized is not None else "N/A",
-                f"{stock.daily_variance*100:.2f}%",
-                f"{stock.rolling_variance_daily*100:.2f}%" if stock.rolling_variance_daily is not None else "N/A"
+                f"${stock.balance:.2f}",
+                f"${0:.2f}",
+                f"{0:.2f}%",
+                f"{0*100:.2f}%",
+                f"{0*100:.2f}%",
+                f"{0*100:.2f}%"
             ]
 
             for index, column in enumerate(columns):
@@ -79,6 +78,8 @@ class StockTable:
                     bgcolor = self.styling.VERY_LIGHT_BLUE
 
                 if index == 3:  # Profit/loss cell
+                    # ToDo: Change color based on profit/loss
+                    profit_loss = 0 # placeholder
                     if abs(profit_loss) < 0.01:
                         color = self.styling.BLACK
                     elif profit_loss >= 0:
@@ -107,10 +108,10 @@ class StockTable:
     def _draw_grid(self, start_row_y):
         """Function to draw grid lines for the table."""
         grid_color = (245, 245, 245)  # Very very light gray, almost white
-        for i in range(len(self.simulation.stocks) + 2):
+        for i in range(len(self.simulation.portfolio.stocks) + 2):
             pygame.draw.line(self.screen, grid_color, (50, start_row_y + i * self.CELL_HEIGHT),
                              (50 + 7 * self.CELL_WIDTH, start_row_y + i * self.CELL_HEIGHT))
         for i in range(7):
             pygame.draw.line(self.screen, grid_color, (50 + i * self.CELL_WIDTH, start_row_y),
                              (50 + i * self.CELL_WIDTH,
-                              start_row_y + self.CELL_HEIGHT * (len(self.simulation.stocks) + 1)))
+                              start_row_y + self.CELL_HEIGHT * (len(self.simulation.portfolio.stocks) + 1)))

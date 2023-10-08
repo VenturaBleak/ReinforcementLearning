@@ -78,9 +78,6 @@ class InvestmentData:
             raise ValueError("Date or Ticker not found in data.")
         return self.data_array[date_idx, ticker_idx, :]
 
-    def query_metadata(self, ticker):
-        return self.metadata[self.metadata['Symbol'] == ticker]
-
     def save(self):
         with open(self.filepath, 'wb') as f:
             pickle.dump(self, f)

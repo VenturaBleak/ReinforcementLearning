@@ -9,6 +9,9 @@ from interface import TopBar, StockTable, Styling
 
 from argparse import ArgumentParser
 
+# hand pick stocks
+selected_tickers = ["MSFT", "IBM", "F", "XOM", "SBUX"]
+
 parser = ArgumentParser()
 parser.add_argument("--period_length", type=int, default=255, help="Number of trading days in a year")
 args = parser.parse_args()
@@ -20,7 +23,6 @@ data_fetcher.run()
 data_prepper = DataPrepper(args.period_length)
 data_prepper.run()
 data_obj = InvestmentData("investment_data").load()
-print(data_obj.tickers[0])
 
 # Initialize pygame
 pygame.init()
@@ -42,7 +44,9 @@ class Game:
         self.screen.fill(self.styling.BG_COLOR)
 
         pygame.display.set_caption('InvestmentGame')
-        self.simulation = FinancialSimulation(period_length=self.period_length, initial_money=1000, num_stocks=5)
+        self.simulation = FinancialSimulation(data_obj=data_obj, period_length=self.period_length,
+                                              start_date=data_obj.dates[0], starting_balance=1000,
+                                              num_stocks=5, hand_picked_stocks=selected_tickers)
         self.top_bar = TopBar(self.simulation, self.screen, self)  # Pass self as the game instance
         self.stock_table = StockTable(self.simulation, self.screen)
         self.timesteps = 0   # Initialize timesteps here
@@ -53,6 +57,9 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+
+                # ToDo: handle date iteration limit reached event
+
                 # TODO: Handle deposit and withdraw button clicks
 
             self.timesteps += 1  # Update timesteps here
@@ -64,6 +71,7 @@ class Game:
 
             pygame.display.flip()
             pygame.time.wait(1)
+
 
         pygame.quit()
 

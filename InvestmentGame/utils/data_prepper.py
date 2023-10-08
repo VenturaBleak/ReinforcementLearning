@@ -122,6 +122,14 @@ class DataPrepper:
         merged_data.replace(-6666.6666, np.nan, inplace=True)
         merged_data.replace(-5555.5555, np.nan, inplace=True)
 
+        # ordering is done, but make sure to put the FED ticker at the beginning.
+        # This is because the FED ticker is used as the date reference
+        merged_data.sort_values(by=["Ticker", "Date"], inplace=True)
+        merged_data.reset_index(inplace=True, drop=True)
+        fed_data = merged_data[merged_data["Ticker"] == "FED"]
+        merged_data = merged_data[merged_data["Ticker"] != "FED"]
+        merged_data = pd.concat([fed_data, merged_data])
+
         # Save the DataFrame
         merged_data.to_csv(os.path.join("data", "data.csv"))
 

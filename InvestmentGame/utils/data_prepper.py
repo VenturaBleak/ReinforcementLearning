@@ -129,7 +129,7 @@ class DataPrepper:
 
         # Initializing and saving data
         investment_data_obj = InvestmentData()
-        investment_data_obj.initial_save(merged_data, self.fetch_metadata())
+        investment_data_obj.initial_save(merged_data, self.fetch_metadata(valid_tickers))
 
     def is_data_prepped(self):
         return os.path.exists(os.path.join("data", "data.csv"))

@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 selected_tickers = ["MSFT", "IBM", "F", "XOM", "SBUX"]
 
 parser = ArgumentParser()
-parser.add_argument("--period_length", type=int, default=255, help="Number of trading days in a year")
+parser.add_argument("--period_length", type=int, default=252, help="Number of trading days in a year")
 args = parser.parse_args()
 
 # Before the Game class definition:
@@ -63,7 +63,7 @@ class Game:
                 # TODO: Handle deposit and withdraw button clicks
 
             self.timesteps += 1  # Update timesteps here
-            self.simulation.simulate_period()
+            self.simulation.step()
             self.screen.fill(self.styling.WHITE)
 
             self.top_bar.draw()

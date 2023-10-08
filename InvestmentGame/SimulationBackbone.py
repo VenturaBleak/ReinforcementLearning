@@ -1,138 +1,141 @@
 import numpy as np
 
-
 class Asset:
-    def __init__(self, ticker, data_obj, period_length, start_date, starting_balance=0.0):
-        self.period_length = period_length
+    def __init__(self, ticker, data_obj, starting_date, starting_balance=0.0):
+        """
+        :param ticker:
+        :param data_obj:
+        :param period_length:
+        :param start_date:
+        :param starting_balance:
+        """
+        self.current_date = starting_date
         self.data_obj = data_obj
         self.ticker = ticker
-        self.is_available_flag = self.is_available(start_date)
-        self.purchase_price = None
-        self.profit_loss = None
-
-        print(f"Date: {start_date}, Ticker: {self.ticker}, Is Available: {self.is_available_flag}")
-        self.price = self.data_obj.query(start_date, self.ticker)[0] if self.is_available_flag else None
-        self.prev_price = None
-
         if ticker == "FED":
             self.name = "Federal Funds Rate"
         else:
             self.name = self.data_obj.metadata[self.data_obj.metadata["Symbol"] == ticker]["Security"].values[0]
 
         self.balance = starting_balance
-        self.daily_returns = np.zeros(self.period_length)  # for one year
-        self.cursor = 0
+        self.profit = np.nan
+        self.price = np.nan
+        self.volume = np.nan
 
-    def is_available(self, date):
-        return True # @GPT, this is a placeholder, you should implement this method
+    def step(self, current_date):
+        """Steps the asset forward by one timestep.
 
-    def update_running_window(self, daily_return):
-        # update running running window logging
-        self.daily_returns[self.cursor] = daily_return
+        :return:
+        """
+        # Update the current date
+        self.current_date = current_date
 
-        # TODo: double check this
-        self.cursor = (self.cursor + 1) % self.period_length
+        # Update the price
+        self.price = self.data_obj.query(self.ticker, self.current_date, key="Price")
 
-    def simulate_period(self, date):
-        raise NotImplementedError
+        # Update the volume
+        self.volume = self.data_obj.query(self.ticker, self.current_date, key="Volume")
 
-    def update_profit(self):
-        raise NotImplementedError
+        # Update the profit
+        self.profit = self.balance * self.data_obj.query(self.ticker, self.current_date, key="Timestep Return")
 
-    # TODo: double check this
-    def calculate_annualized_mean(self):
-        return (np.mean(self.daily_returns) + 1) ** self.period_length - 1
+        # Update the balance
+        self.balance += self.profit
 
-    # TODo: double check this
-    def calculate_daily_variance(self):
-        return np.std(self.daily_returns)
+    def deposit(self, amount):
+        """Deposits the given amount into the asset.
 
+        :param amount:
+        :return:
+        """
+        self.balance += amount
+
+    def withdraw(self, amount):
+        """Withdraws the given amount from the asset, ensuring it doesn't go negative."""
+        if amount <= self.balance:
+            self.balance -= amount
+        else:
+            raise ValueError("Insufficient balance for withdrawal")
 
 class FedRate(Asset):
-    def __init__(self, ticker, data_obj, period_length, start_date, starting_balance):
-        super().__init__(ticker, data_obj, period_length, start_date, starting_balance)
+    """Federal Funds Rate Asset Class
 
-    def simulate_period(self, date):
-        if not self.is_available_flag:
-            print(f"{self.name} is not available for trading on {date}.")
-            return None
+    Purpose:
+    - Placeholder for now
+    """
+    def __init__(self, ticker, data_obj, starting_date, starting_balance=0.0):
+        super().__init__(ticker, data_obj, starting_date, starting_balance=0.0)
 
-        # Fetch the rate
-        self.price = self.data_obj.query(date, self.ticker)[0]
-        daily_return = (1 + self.price / 100) ** (1 / self.period_length) - 1
+class PlayerBalance(FedRate):
+    """Player's Balance Class - Represents the top bar asset."""
+    def __init__(self, ticker, data_obj, starting_date, starting_balance=0.0):
+        super().__init__(ticker, data_obj, starting_date, starting_balance=0.0)
 
-        self.balance = self.balance * (1 + daily_return)
+    # The deposit and withdraw methods can be overridden if unique logic is needed
 
-        self.update_profit()
-
-        # update running window logging
-        self.update_running_window(daily_return)
-
-        # update is_available_flag
-        self.is_available(date)
-
-        return daily_return
-
-        # ToDo: update profit
-    def update_profit(self):
-        pass
 
 class Stock(Asset):
-    def __init__(self, ticker, data_obj, period_length, start_date, starting_balance):
-        super().__init__(ticker, data_obj, period_length, start_date, starting_balance)
+    """Stock Asset Class
 
-    def simulate_period(self, date):
-        if not self.is_available_flag:
-            print(f"{self.name} is not available for trading on {date}.")
-            return None
-
-        # calculate daily return
-        self.prev_price = self.price
-        self.price = self.data_obj.query(date, self.ticker)[0]
-        daily_return = (self.price - self.prev_price) / self.prev_price - 1
-        self.balance = self.balance * (1 + daily_return)
-
-        # update profit
-        self.update_profit()
-
-        # update running window logging
-        self.update_running_window(daily_return)
-
-        # update is_available_flag
-        self.is_available(date)
-
-        return daily_return
-
-    # ToDo: update profit
-    def update_profit(self):
-        pass
-
+    Purpose:
+    - Placeholder for now
+    """
+    def __init__(self, ticker, data_obj, starting_date, starting_balance=0.0):
+        super().__init__(ticker, data_obj, starting_date, starting_balance=0.0)
 
 class Portfolio:
     def __init__(self, data_obj, period_length, start_date, starting_balance, num_stocks=5, hand_picked_stocks=None):
-        # Default asset class is FedRate
-        self.assets = [FedRate("FED", data_obj, period_length, start_date, starting_balance)]
+        self.current_date = start_date
 
+        # Default asset class is FedRate
+        self.assets = [FedRate("FED", data_obj, start_date, 0)]
+
+        # Add selection of stocks to the portfolio
         if hand_picked_stocks is not None:
-            self.stocks = [Stock(ticker, data_obj, period_length, start_date, 0) for ticker in hand_picked_stocks]
+            self.stocks = [Stock(ticker, data_obj, start_date, 0) for ticker in hand_picked_stocks]
             self.assets.extend(self.stocks)
         else:
             available_tickers = [ticker for ticker in data_obj.tickers if ticker != "FED"]
             selected_tickers = np.random.choice(available_tickers, num_stocks, replace=False)
-            self.assets.extend([Stock(ticker, data_obj, period_length, start_date) for ticker in selected_tickers])
+            self.assets.extend([Stock(ticker, data_obj, start_date, 0) for ticker in selected_tickers])
 
-    @property
-    def total_value(self):
-        total = sum(asset.valuation() for asset in self.assets if not isinstance(asset, FedRate))
-        cash_value = next(asset.valuation() for asset in self.assets if isinstance(asset, FedRate))
-        return total - cash_value
+    def money_market(self):
+        """Returns the money market asset (FedRate) in the portfolio."""
+        for asset in self.assets:
+            if isinstance(asset, FedRate):
+                return asset
+        return None
+
+    def deposit_to_portfolio(self, amount):
+        """Deposits the given amount into the portfolio's money market asset."""
+        if self.money_market:
+            self.money_market.deposit(amount)
+
+    def withdraw_from_portfolio(self, amount):
+        """Withdraws the given amount from the portfolio's money market asset."""
+        if self.money_market:
+            self.money_market.withdraw(amount)
+
+    def update_total_value(self):
+        # ToDo: Implement this
+        # sum up the balance of all assets
+        pass
 
     def step(self, current_date):
-        for asset in self.assets:
-            asset.simulate_period(current_date)
+        """Steps the portfolio forward by one timestep.
 
+        :return:
+        """
+        self.current_date = current_date
+        for asset in self.assets:
+            asset.step(self.current_date)
 
 class FinancialSimulation:
+    """Financial Simulation Class
+
+    Purpose:
+    - Central class that controls in-game simulation: Communicates between the PyGame class and the Portfolio class.
+    """
     def __init__(self, data_obj, period_length, start_date, starting_balance=1000, num_stocks=5, hand_picked_stocks=None):
         self.period_length = period_length
         self.date_iter = iter([d for d in data_obj.dates if d >= start_date])  # Start iterating from the given start_date
@@ -145,10 +148,12 @@ class FinancialSimulation:
 
         # Initialize the portfolio
         self.current_date = next(self.date_iter)
-        self.portfolio = Portfolio(self.data_obj, self.period_length, self.current_date, self.starting_balance, self.num_stocks, self.hand_picked_stocks)
+        self.portfolio = Portfolio(self.data_obj, self.period_length, self.current_date, 0, self.num_stocks, self.hand_picked_stocks)
+        self.player_balance = PlayerBalance("FED", self.data_obj, self.starting_balance)
 
-    def simulate_period(self):
+    def step(self):
         self.portfolio.step(self.current_date)  # Trigger portfolio to step forward
+        self.player_balance.step(self.current_date)  # Trigger player balance to step forward
         try:
             self.current_date = next(self.date_iter)
             self.time_step += 1
@@ -156,4 +161,3 @@ class FinancialSimulation:
         except StopIteration:
             print("Game over. Last date reached.")
             return False
-

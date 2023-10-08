@@ -70,7 +70,7 @@ class Game:
             self.stock_table.draw()
 
             pygame.display.flip()
-            pygame.time.wait(1)
+            pygame.time.wait(10)
 
 
         pygame.quit()

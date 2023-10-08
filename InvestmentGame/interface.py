@@ -51,6 +51,7 @@ class StockTable:
         self.CELL_HEIGHT = 40
 
     def draw(self):
+        # ToDo: header in dict, together with their values
         headers = ["Name", "Stock Price", "Investment", "Profit/Loss $", "Mean (Yearly)", "Rolling Mean (Annualized)", "Daily Variance", "Rolling Variance"]
 
         # Draw headers
@@ -60,7 +61,7 @@ class StockTable:
         y_offset = 100
         for stock in self.simulation.portfolio.stocks:
             columns = [
-                stock.name,
+                stock.name[:15],
                 f"${stock.price:.2f}",
                 f"${stock.balance:.2f}",
                 f"${0:.2f}",

@@ -19,8 +19,8 @@ data_fetcher.run()
 
 data_prepper = DataPrepper(args.period_length)
 data_prepper.run()
-InvestmentData("investment_data").load()
-print(InvestmentData.__name__)
+data_obj = InvestmentData("investment_data").load()
+print(data_obj.tickers[0])
 
 # Initialize pygame
 pygame.init()

@@ -5,8 +5,6 @@ import pickle
 class InvestmentData:
     def __init__(self, filename, test=False):
         # placeholder variables
-        self.tickers = None
-        self.dates = None
         self.ticker_to_idx = {}
         self.date_to_idx = {}
         self.data_array = None
@@ -90,4 +88,5 @@ class InvestmentData:
     def load(self):
         with open(self.filepath, 'rb') as f:
             loaded_data = pickle.load(f)
+            print(f"DataObject successfully loaded from: {self.filepath}")
         return loaded_data

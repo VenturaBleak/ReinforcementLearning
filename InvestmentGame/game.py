@@ -1,5 +1,5 @@
 import pygame
-from SimulationBackbone import FinancialSimulation
+from simulation_backbone import FinancialSimulation
 
 # At the beginning of your game file, add:
 from utils.data_fetcher import DataFetcher
@@ -33,6 +33,7 @@ class Game:
         self.data_fetcher = DataFetcher()
         self.data_prepper = DataPrepper(self.period_length)
         self.styling = Styling()
+        self.buttons = []
 
         if download and not self.data_fetcher.is_data_fetched():
             self.data_fetcher.run()
@@ -49,21 +50,30 @@ class Game:
                                               num_stocks=5, hand_picked_stocks=selected_tickers)
         self.top_bar = TopBar(self.simulation, self.screen, self)  # Pass self as the game instance
         self.stock_table = StockTable(self.simulation, self.screen)
+        self.buttons.extend(self.top_bar.buttons)
+        self.buttons.extend(self.stock_table.buttons)
         self.timesteps = 0   # Initialize timesteps here
 
     def run(self):
         running = True
+        for button in self.buttons:
+            button.perform_check()
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
 
-                # ToDo: handle date iteration limit reached event
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left mouse button.
+                        for button in self.buttons:
+                            button.click()
 
-                # TODO: Handle deposit and withdraw button clicks
+                # ToDo: handle date iteration limit reached event
 
             self.timesteps += 1  # Update timesteps here
             self.simulation.step()
+            for button in self.buttons:
+                button.perform_check()
             self.screen.fill(self.styling.WHITE)
 
             self.top_bar.draw()
@@ -71,7 +81,6 @@ class Game:
 
             pygame.display.flip()
             pygame.time.wait(10)
-
 
         pygame.quit()
 

@@ -23,7 +23,6 @@ class Asset:
         self.volume = np.nan
 
         self.portfolio = portfolio
-
         self.deposit_valid = False
         self.withdraw_valid = False
 
@@ -60,6 +59,40 @@ class PlayerBalance(FedRate):
     """Player's Balance Class - Represents the top bar asset."""
     def __init__(self, ticker, data_obj, starting_date, portfolio, starting_balance):
         super().__init__(ticker, data_obj, starting_date, portfolio, starting_balance)
+
+    def deposit_to_portfolio(self):
+        """Deposits the given amount into the portfolio's money market asset."""
+        # ToDo: make amount a parameter
+        amount = self.balance
+        if self.portfolio.money_market:
+            self.portfolio.money_market.balance += amount
+            self.balance -= amount
+
+    def withdraw_from_portfolio(self):
+        """Withdraws the given amount from the portfolio's money market asset."""
+        # ToDo: make amount a parameter
+        amount = self.portfolio.money_market.balance
+        if self.portfolio.money_market:
+            self.portfolio.money_market.balance -= amount
+            self.balance += amount
+
+    def can_deposit_to_portfolio(self):
+        # ToDo: make amount a parameter
+        amount = self.balance
+        if amount <= self.balance and amount > 0:
+            self.deposit_valid = True
+        else:
+            self.deposit_valid = False
+        return self.deposit_valid
+
+    def can_withdraw_from_portfolio(self):
+        # ToDo: make amount a parameter
+        amount = self.portfolio.money_market.balance
+        if amount <= self.portfolio.money_market.balance and amount > 0:
+            self.withdraw_valid = True
+        else:
+            self.withdraw_valid = False
+        return self.withdraw_valid
 
 
 class Stock(Asset):
@@ -162,8 +195,6 @@ class FinancialSimulation:
         self.current_date = next(self.date_iter)
         self.portfolio = Portfolio(self.data_obj, self.period_length, self.current_date, 0, self.num_stocks, self.hand_picked_stocks)
         self.player_balance = PlayerBalance("FED", self.data_obj, self.current_date, self.portfolio, self.starting_balance)
-        self.player_balance.deposit_valid = True
-        self.player_balance.withdraw_valid = False
 
     def step(self):
         self.portfolio.step(self.current_date)  # Trigger portfolio to step forward
@@ -175,37 +206,3 @@ class FinancialSimulation:
         except StopIteration:
             print("Game over. Last date reached.")
             return False
-
-    def deposit_to_portfolio(self):
-        """Deposits the given amount into the portfolio's money market asset."""
-        # ToDo: make amount a parameter
-        amount = self.player_balance.balance
-        if self.portfolio.money_market:
-            self.portfolio.money_market.balance += amount
-            self.player_balance.balance -= amount
-
-    def withdraw_from_portfolio(self):
-        """Withdraws the given amount from the portfolio's money market asset."""
-        # ToDo: make amount a parameter
-        amount = self.portfolio.money_market.balance
-        if self.portfolio.money_market:
-            self.portfolio.money_market.balance -= amount
-            self.player_balance.balance += amount
-
-    def can_deposit_to_portfolio(self):
-        # ToDo: make amount a parameter
-        amount = self.player_balance.balance
-        if amount <= self.player_balance.balance and amount > 0:
-            self.player_balance.deposit_valid = True
-        else:
-            self.player_balance.deposit_valid = False
-        return self.player_balance.deposit_valid
-
-    def can_withdraw_from_portfolio(self):
-        # ToDo: make amount a parameter
-        amount = self.portfolio.money_market.balance
-        if amount <= self.portfolio.money_market.balance and amount > 0:
-            self.player_balance.withdraw_valid = True
-        else:
-            self.player_balance.withdraw_valid = False
-        return self.player_balance.withdraw_valid

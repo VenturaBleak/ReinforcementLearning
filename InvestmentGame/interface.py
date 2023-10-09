@@ -98,8 +98,8 @@ class TopBar:
             (self.height - self.styling.BUTTON_HEIGHT) // 2,
             text="Deposit",
             asset=self.simulation.player_balance,  # assuming this is the asset you want to associate with the button
-            action=self.simulation.deposit_to_portfolio,
-            check_func=self.simulation.player_balance.deposit_valid,
+            action=self.simulation.player_balance.deposit_to_portfolio,
+            check_func=self.simulation.player_balance.can_deposit_to_portfolio,
             styling=self.styling
         )
         portfolio_withdraw_button = draw_button(
@@ -107,8 +107,8 @@ class TopBar:
             (self.height - self.styling.BUTTON_HEIGHT) // 2,
             text="Withdraw",
             asset=self.simulation.player_balance,  # assuming this is the asset you want to associate with the button
-            action=self.simulation.withdraw_from_portfolio,
-            check_func=self.simulation.player_balance.withdraw_valid,
+            action=self.simulation.player_balance.withdraw_from_portfolio,
+            check_func=self.simulation.player_balance.can_withdraw_from_portfolio,
             styling=self.styling
         )
         self.buttons.append(portfolio_deposit_button)
@@ -196,7 +196,7 @@ class StockTable:
             text="Deposit",
             asset=stock,
             action=stock.deposit,  # Pass the function reference, not the result
-            check_func=stock.deposit_valid,  # Pass the function reference, not the result
+            check_func=stock.can_deposit,  # Pass the function reference, not the result
             styling=self.styling
         )
         withdraw_button = draw_button(
@@ -206,7 +206,7 @@ class StockTable:
             text="Withdraw",
             asset=stock,
             action=stock.withdraw,  # Pass the function reference, not the result
-            check_func=stock.withdraw_valid,  # Pass the function reference, not the result
+            check_func=stock.can_withdraw,  # Pass the function reference, not the result
             styling=self.styling
         )
 
@@ -339,7 +339,7 @@ class Button:
     def perform_check(self):
         """Runs the check function to decide if the action is valid or not."""
         print(f"asset: {self.asset}, args: {self.args}, kwargs: {self.kwargs}")
-        is_valid = self.check_func(self.asset, *self.args, **self.kwargs) # error caused by this line
+        is_valid = self.check_func(*self.args, **self.kwargs) # error caused by this line
         print(f"Is valid: {is_valid}")
         if is_valid:
             self.enable()

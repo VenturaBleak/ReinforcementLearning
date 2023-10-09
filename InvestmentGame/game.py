@@ -1,11 +1,11 @@
 import pygame
-from SimulationBackbone import FinancialSimulation
+from simulation_backbone import FinancialSimulation
 
 # At the beginning of your game file, add:
 from utils.data_fetcher import DataFetcher
 from utils.data_prepper import DataPrepper
 from utils.data_object import InvestmentData
-from interface import TopBar, StockTable, Styling
+from interface import TopBar, PortfolioTable, Styling
 
 from argparse import ArgumentParser
 
@@ -33,6 +33,7 @@ class Game:
         self.data_fetcher = DataFetcher()
         self.data_prepper = DataPrepper(self.period_length)
         self.styling = Styling()
+        self.buttons = []
 
         if download and not self.data_fetcher.is_data_fetched():
             self.data_fetcher.run()
@@ -48,30 +49,50 @@ class Game:
                                               start_date=data_obj.dates[0], starting_balance=1000,
                                               num_stocks=5, hand_picked_stocks=selected_tickers)
         self.top_bar = TopBar(self.simulation, self.screen, self)  # Pass self as the game instance
-        self.stock_table = StockTable(self.simulation, self.screen)
+        self.stock_table = PortfolioTable(self.simulation, self.screen)
         self.timesteps = 0   # Initialize timesteps here
+
+    def update_buttons(self):
+        self.buttons = []
+        self.buttons.extend(self.top_bar.buttons)
+        self.buttons.extend(self.stock_table.buttons)
+
+    def draw_all(self):
+        self.screen.fill(self.styling.LIGHT_GRAY)
+        self.top_bar.draw()
+        self.stock_table.draw()
+        self.update_buttons()
+        for button in self.buttons:
+            button.perform_check()
+            button.draw()
 
     def run(self):
         running = True
+
+        # Drawing the initial state for timestep 0
+        self.draw_all()
+        pygame.display.flip()
+
         while running:
+            # Handle events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left mouse button.
+                        mouse_pos = pygame.mouse.get_pos()
+                        for button in self.buttons:
+                            if button.x < mouse_pos[0] < button.x + button.width and button.y < mouse_pos[1] < button.y + button.height:
+                                button.click()
 
-                # ToDo: handle date iteration limit reached event
-
-                # TODO: Handle deposit and withdraw button clicks
-
-            self.timesteps += 1  # Update timesteps here
+            # Updating game logic
+            self.timesteps += 1  # Update timesteps
             self.simulation.step()
-            self.screen.fill(self.styling.WHITE)
 
-            self.top_bar.draw()
-            self.stock_table.draw()
-
+            # Drawing everything on screen
+            self.draw_all()
             pygame.display.flip()
-            pygame.time.wait(10)
-
+            pygame.time.wait(1)
 
         pygame.quit()
 

@@ -75,7 +75,7 @@ class InvestmentData:
             if row['Ticker'] == "FED":
                 daily_return = (1 + row['Price'] / 100) ** (1 / period_length) - 1
             else:
-                daily_return = (row['Price'] - prev_prices.get(row['Ticker'], row['Price'])) / prev_prices.get(row['Ticker'], row['Price']) - 1
+                daily_return = (row['Price'] - prev_prices.get(row['Ticker'], row['Price'])) / prev_prices.get(row['Ticker'], row['Price'])
             self.data_array[date_idx, ticker_idx, 2] = daily_return
             prev_prices[row['Ticker']] = row['Price']
 

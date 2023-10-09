@@ -86,6 +86,8 @@ class Stock(Asset):
 class Portfolio:
     def __init__(self, data_obj, period_length, start_date, starting_balance, num_stocks=5, hand_picked_stocks=None):
         self.current_date = start_date
+        self.balance = starting_balance
+        self.profit_loss = 0
 
         # Default asset class is FedRate
         self.assets = [FedRate("FED", data_obj, start_date, 0)]

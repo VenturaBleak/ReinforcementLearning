@@ -41,7 +41,7 @@ class Game:
             self.data_prepper.run()
 
         self.screen = pygame.display.set_mode((self.styling.SCREEN_WIDTH, self.styling.SCREEN_HEIGHT))
-        self.screen.fill(self.styling.BG_COLOR)
+        self.screen.fill(self.styling.BG_COLOR)  # Change from WHITE to BG_COLOR
 
         pygame.display.set_caption('InvestmentGame')
         self.simulation = FinancialSimulation(data_obj=data_obj, period_length=self.period_length,

@@ -41,16 +41,16 @@ class Asset:
         self.volume = self.data_obj.query(self.ticker, self.current_date, key="Volume")
 
         # Update the profit
-        self.profit = self.balance * self.data_obj.query(self.ticker, self.current_date, key="Timestep Return")
+        self.profit = self.balance * (self.data_obj.query(self.ticker, self.current_date, key="Timestep Return"))
 
         # Update the balance
         self.balance += self.profit
 
 class FedRate(Asset):
-    """Federal Funds Rate Asset Class
+    """Federal Funds Rate Asset Class - Represents a Portfolio Table Asset.
 
     Purpose:
-    - Placeholder for now
+    - Serves as the "money market" asset in the portfolio.
     """
     def __init__(self, ticker, data_obj, starting_date, portfolio, starting_balance):
         super().__init__(ticker, data_obj, starting_date, portfolio, starting_balance)
@@ -67,6 +67,7 @@ class PlayerBalance(FedRate):
         if self.portfolio.money_market:
             self.portfolio.money_market.balance += amount
             self.balance -= amount
+            print(f"Deposited {amount} from {self.name} to {self.portfolio.money_market.name}.")
 
     def withdraw_from_portfolio(self):
         """Withdraws the given amount from the portfolio's money market asset."""
@@ -75,6 +76,7 @@ class PlayerBalance(FedRate):
         if self.portfolio.money_market:
             self.portfolio.money_market.balance -= amount
             self.balance += amount
+            print(f"Deposited {amount} into from portfolio's money market asset.")
 
     def can_deposit_to_portfolio(self):
         # ToDo: make amount a parameter

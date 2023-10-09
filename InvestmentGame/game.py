@@ -5,7 +5,7 @@ from simulation_backbone import FinancialSimulation
 from utils.data_fetcher import DataFetcher
 from utils.data_prepper import DataPrepper
 from utils.data_object import InvestmentData
-from interface import TopBar, StockTable, Styling
+from interface import TopBar, PortfolioTable, Styling
 
 from argparse import ArgumentParser
 
@@ -49,49 +49,53 @@ class Game:
                                               start_date=data_obj.dates[0], starting_balance=1000,
                                               num_stocks=5, hand_picked_stocks=selected_tickers)
         self.top_bar = TopBar(self.simulation, self.screen, self)  # Pass self as the game instance
-        self.stock_table = StockTable(self.simulation, self.screen)
+        self.stock_table = PortfolioTable(self.simulation, self.screen)
         self.timesteps = 0   # Initialize timesteps here
+
+    def update_buttons(self):
+        self.buttons.clear()
+        self.buttons.extend(self.top_bar.buttons)
+        self.buttons.extend(self.stock_table.buttons)
+
+    def draw_all(self):
+        self.screen.fill(self.styling.WHITE)
+        self.top_bar.draw()
+        self.stock_table.draw()
+        self.update_buttons()
+        for button in self.buttons:
+            button.perform_check()
+            button.draw(self.screen)  # Make sure to draw buttons after performing the check.
 
     def run(self):
         running = True
-        # self.top_bar.draw()
-        # self.stock_table.draw()
-        # self.update_buttons()
 
-        # for button in self.buttons:
-        #     button.perform_check()
+        # Drawing the initial state for timestep 0
+        self.draw_all()
+        pygame.display.flip()
+
         while running:
+            # Handle events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left mouse button.
-                        # print("Mouse button was pressed.") # debug
                         for button in self.buttons:
-                            button.click()
+                            if button.hovered:
+                                button.click()
 
-                # ToDo: handle date iteration limit reached event
-
+            # Updating game logic
             self.timesteps += 1  # Update timesteps here
             self.simulation.step()
-            for button in self.buttons:
-               button.perform_check()
-            self.screen.fill(self.styling.WHITE)
 
-            self.top_bar.draw()
-            self.stock_table.draw()
-            self.update_buttons()
+            # Drawing everything on screen
+            self.draw_all()
 
             pygame.display.flip()
-            pygame.time.wait(100)
+            pygame.time.wait(1)
 
         pygame.quit()
-
-    def update_buttons(self):
-        self.buttons.clear()
-        self.buttons.extend(self.top_bar.buttons)
-        self.buttons.extend(self.stock_table.buttons)
 
 if __name__ == "__main__":
     game = Game()

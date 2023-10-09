@@ -3,9 +3,11 @@ import pygame
 def draw_button(screen, x, y, text, asset, action, check_func, styling, *args, **kwargs):
     button = Button(
         x, y,
-        styling.BUTTON_WIDTH, styling.BUTTON_HEIGHT,
+        styling.BUTTON_WIDTH,
+        styling.BUTTON_HEIGHT,
         text,
-        styling.BUTTON_BG_COLOR, styling.BUTTON_HOVER_COLOR,
+        styling.BUTTON_BG_COLOR,
+        styling.BUTTON_HOVER_COLOR,
         styling.BUTTON_FONT,
         asset,
         action=action,
@@ -119,7 +121,7 @@ class TopBar:
         self.screen.blit(img, (x, y))
 
 
-class StockTable:
+class PortfolioTable:
     def __init__(self, simulation, screen):
         self.simulation = simulation
         self.screen = screen
@@ -283,7 +285,7 @@ class Button:
         self.text = text
         self.color = color
         self.hover_color = hover_color
-        self.active_color = (0, 255, 0)
+        self.active_color = color
         self.font = font
         self.action = action
         self.hovered = False
@@ -294,10 +296,9 @@ class Button:
         self.kwargs = kwargs
 
     def draw(self, screen):
+        """Function to draw the button on the screen."""
         mouse_pos = pygame.mouse.get_pos()
         if self.x < mouse_pos[0] < self.x + self.width and self.y < mouse_pos[1] < self.y + self.height:
-            # print(f"Mouse Position: {mouse_pos}")
-            # print(f"Button's Rectangle: ({self.x}, {self.y}, {self.width}, {self.height})")
             self.hovered = True
         else:
             self.hovered = False
@@ -314,21 +315,11 @@ class Button:
         screen.blit(text_surf, text_rect)
 
     def click(self):
-        # debug
-        print(f"Action: {self.action}")
-        print(f"Args: {self.args}")
-        print(f"Kwargs: {self.kwargs}")
-
-        if self.hovered:
-            print(f"Button with text '{self.text}' was hovered upon.") # debug
         if not self.disabled:
-            print(f"Button with text '{self.text}' was not disabled.") # debug
-
-        if self.hovered and not self.disabled:
-            print(f"Button with text '{self.text}' was clicked.") # debug
+            print(f"Button with text '{self.text}' was clicked.")  # debug
             if self.action:
                 self.action(*self.args, **self.kwargs)
-                print(f"Executing action for button with text '{self.text}'.") # debug
+                print(f"Executing action for button with text '{self.text}'.")  # debug
 
     def disable(self):
         self.disabled = True
@@ -337,10 +328,7 @@ class Button:
         self.disabled = False
 
     def perform_check(self):
-        """Runs the check function to decide if the action is valid or not."""
-        print(f"asset: {self.asset}, args: {self.args}, kwargs: {self.kwargs}")
         is_valid = self.check_func(*self.args, **self.kwargs) # error caused by this line
-        print(f"Is valid: {is_valid}")
         if is_valid:
             self.enable()
         else:

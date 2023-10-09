@@ -30,7 +30,7 @@ if __name__ == "__main__":
             action = env.action_space.sample()  # Sample an action directly from the action space
             obs, reward, terminated, _, info = env.step(action)
             env.render()
-            pygame.time.wait(40)
+            pygame.time.wait(50)
 
         obs, _ = env.reset()  # Explicitly reset the environment at the end of each episode
         print("Episode finished")

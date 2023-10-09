@@ -77,7 +77,7 @@ class Stock(Asset):
         self.balance += amount
         self.portfolio.money_market.balance -= amount
 
-    def withdraw(self, amount):
+    def withdraw(self):
         # ToDo: make amount a parameter
         amount = self.balance
         self.balance -= amount
@@ -87,19 +87,19 @@ class Stock(Asset):
         # ToDo: make amount a parameter
         amount = self.portfolio.money_market.balance
         if amount <= self.portfolio.money_market.balance and amount > 0:
-            self.can_deposit = True
+            self.deposit_valid = True
         else:
-            self.can_deposit = False
-        return self.can_deposit
+            self.deposit_valid = False
+        return self.deposit_valid
 
     def can_withdraw(self):
         # ToDo: make amount a parameter
         amount = self.balance
         if amount <= self.balance and amount > 0:
-            self.can_withdraw = True
+            self.withdraw_valid = True
         else:
-            self.can_withdraw = False
-        return self.can_withdraw
+            self.withdraw_valid = False
+        return self.withdraw_valid
 
 class Portfolio:
     def __init__(self, data_obj, period_length, start_date, starting_balance, num_stocks=5, hand_picked_stocks=None):
@@ -162,10 +162,9 @@ class FinancialSimulation:
         self.current_date = next(self.date_iter)
         self.portfolio = Portfolio(self.data_obj, self.period_length, self.current_date, 0, self.num_stocks, self.hand_picked_stocks)
         self.player_balance = PlayerBalance("FED", self.data_obj, self.current_date, self.portfolio, self.starting_balance)
-        self.player_balance.deposit_valid = False
+        self.player_balance.deposit_valid = True
         self.player_balance.withdraw_valid = False
-        print(f"Starting balance: {self.starting_balance}")
-        print(f"Starting balance: {self.player_balance.balance}")
+
     def step(self):
         self.portfolio.step(self.current_date)  # Trigger portfolio to step forward
         self.player_balance.step(self.current_date)  # Trigger player balance to step forward

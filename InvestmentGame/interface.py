@@ -114,13 +114,6 @@ class TopBar:
         self.buttons.append(portfolio_deposit_button)
         self.buttons.append(portfolio_withdraw_button)
 
-    def portfolio_deposit_action(self):
-    # Handle deposit logic here
-        pass
-
-    def portfolio_withdraw_action(self):
-    # Handle withdraw logic here
-        pass
     def _draw_text(self, text, color, x, y):
         img = self.styling.font.render(text, True, color)
         self.screen.blit(img, (x, y))
@@ -167,7 +160,7 @@ class StockTable:
         columns = [
             fedrate.name[:14],
             fedrate.ticker[:10],  # Assuming each stock object has a 'ticker' attribute.
-            f"${fedrate.price:.2f}",
+            f"{fedrate.price:.2f}%",
             f"${fedrate.balance:.2f}",
             f"${0:.2f}"  # Placeholder profit/loss, adjust as needed.
         ]
@@ -303,6 +296,8 @@ class Button:
     def draw(self, screen):
         mouse_pos = pygame.mouse.get_pos()
         if self.x < mouse_pos[0] < self.x + self.width and self.y < mouse_pos[1] < self.y + self.height:
+            # print(f"Mouse Position: {mouse_pos}")
+            # print(f"Button's Rectangle: ({self.x}, {self.y}, {self.width}, {self.height})")
             self.hovered = True
         else:
             self.hovered = False
@@ -319,9 +314,21 @@ class Button:
         screen.blit(text_surf, text_rect)
 
     def click(self):
+        # debug
+        print(f"Action: {self.action}")
+        print(f"Args: {self.args}")
+        print(f"Kwargs: {self.kwargs}")
+
+        if self.hovered:
+            print(f"Button with text '{self.text}' was hovered upon.") # debug
+        if not self.disabled:
+            print(f"Button with text '{self.text}' was not disabled.") # debug
+
         if self.hovered and not self.disabled:
+            print(f"Button with text '{self.text}' was clicked.") # debug
             if self.action:
                 self.action(*self.args, **self.kwargs)
+                print(f"Executing action for button with text '{self.text}'.") # debug
 
     def disable(self):
         self.disabled = True
@@ -331,7 +338,9 @@ class Button:
 
     def perform_check(self):
         """Runs the check function to decide if the action is valid or not."""
-        is_valid = self.check_func(self.asset, *self.args, **self.kwargs)
+        print(f"asset: {self.asset}, args: {self.args}, kwargs: {self.kwargs}")
+        is_valid = self.check_func(self.asset, *self.args, **self.kwargs) # error caused by this line
+        print(f"Is valid: {is_valid}")
         if is_valid:
             self.enable()
         else:

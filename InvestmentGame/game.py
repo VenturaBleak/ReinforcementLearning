@@ -50,14 +50,16 @@ class Game:
                                               num_stocks=5, hand_picked_stocks=selected_tickers)
         self.top_bar = TopBar(self.simulation, self.screen, self)  # Pass self as the game instance
         self.stock_table = StockTable(self.simulation, self.screen)
-        self.buttons.extend(self.top_bar.buttons)
-        self.buttons.extend(self.stock_table.buttons)
         self.timesteps = 0   # Initialize timesteps here
 
     def run(self):
         running = True
-        for button in self.buttons:
-            button.perform_check()
+        # self.top_bar.draw()
+        # self.stock_table.draw()
+        # self.update_buttons()
+
+        # for button in self.buttons:
+        #     button.perform_check()
         while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -65,6 +67,7 @@ class Game:
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left mouse button.
+                        # print("Mouse button was pressed.") # debug
                         for button in self.buttons:
                             button.click()
 
@@ -73,16 +76,22 @@ class Game:
             self.timesteps += 1  # Update timesteps here
             self.simulation.step()
             for button in self.buttons:
-                button.perform_check()
+               button.perform_check()
             self.screen.fill(self.styling.WHITE)
 
             self.top_bar.draw()
             self.stock_table.draw()
+            self.update_buttons()
 
             pygame.display.flip()
-            pygame.time.wait(10)
+            pygame.time.wait(100)
 
         pygame.quit()
+
+    def update_buttons(self):
+        self.buttons.clear()
+        self.buttons.extend(self.top_bar.buttons)
+        self.buttons.extend(self.stock_table.buttons)
 
 if __name__ == "__main__":
     game = Game()

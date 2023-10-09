@@ -53,18 +53,18 @@ class Game:
         self.timesteps = 0   # Initialize timesteps here
 
     def update_buttons(self):
-        self.buttons.clear()
+        self.buttons = []
         self.buttons.extend(self.top_bar.buttons)
         self.buttons.extend(self.stock_table.buttons)
 
     def draw_all(self):
-        self.screen.fill(self.styling.WHITE)
+        self.screen.fill(self.styling.LIGHT_GRAY)
         self.top_bar.draw()
         self.stock_table.draw()
         self.update_buttons()
         for button in self.buttons:
             button.perform_check()
-            button.draw(self.screen)  # Make sure to draw buttons after performing the check.
+            button.draw()
 
     def run(self):
         running = True
@@ -78,20 +78,19 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left mouse button.
+                        mouse_pos = pygame.mouse.get_pos()
                         for button in self.buttons:
-                            if button.hovered:
+                            if button.x < mouse_pos[0] < button.x + button.width and button.y < mouse_pos[1] < button.y + button.height:
                                 button.click()
 
             # Updating game logic
-            self.timesteps += 1  # Update timesteps here
+            self.timesteps += 1  # Update timesteps
             self.simulation.step()
 
             # Drawing everything on screen
             self.draw_all()
-
             pygame.display.flip()
             pygame.time.wait(1)
 

@@ -1,22 +1,5 @@
 import pygame
 
-def draw_button(screen, x, y, text, asset, action, check_func, styling, *args, **kwargs):
-    button = Button(
-        x, y,
-        styling.BUTTON_WIDTH,
-        styling.BUTTON_HEIGHT,
-        text,
-        styling.BUTTON_BG_COLOR,
-        styling.BUTTON_HOVER_COLOR,
-        styling.BUTTON_FONT,
-        asset,
-        action=action,
-        check_func=check_func,
-        *args, **kwargs
-    )
-    button.draw(screen)
-    return button  # Return the button object.
-
 class Styling:
     """Class to store colors used in the game."""
     # init
@@ -94,24 +77,27 @@ class TopBar:
         self.screen.blit(cash_label_img, (400, 12))
         self.screen.blit(cash_value_img, (580, 12))  # This places the cash value a bit to the right of the "Cash:" label. Adjust as needed.
 
-        # Adjust the buttons to be next to the cash info
-        portfolio_deposit_button = draw_button(
-            self.screen, 650,  # Starting position for the button
+        # Draw the Deposit and Withdraw buttons
+        self.buttons = []  # Reset the buttons list
+        portfolio_deposit_button = Button(
+            self.screen,
+            680,
             (self.height - self.styling.BUTTON_HEIGHT) // 2,
-            text="Deposit",
-            asset=self.simulation.player_balance,  # assuming this is the asset you want to associate with the button
+            "Deposit",
+            self.simulation.player_balance,
+            self.styling,
             action=self.simulation.player_balance.deposit_to_portfolio,
-            check_func=self.simulation.player_balance.can_deposit_to_portfolio,
-            styling=self.styling
+            check_func=self.simulation.player_balance.can_deposit_to_portfolio
         )
-        portfolio_withdraw_button = draw_button(
-            self.screen, 750,  # Adjust this value based on the width of the Deposit button
+        portfolio_withdraw_button = Button(
+            self.screen,
+            780,
             (self.height - self.styling.BUTTON_HEIGHT) // 2,
-            text="Withdraw",
-            asset=self.simulation.player_balance,  # assuming this is the asset you want to associate with the button
+            "Withdraw",
+            self.simulation.player_balance,
+            self.styling,
             action=self.simulation.player_balance.withdraw_from_portfolio,
-            check_func=self.simulation.player_balance.can_withdraw_from_portfolio,
-            styling=self.styling
+            check_func=self.simulation.player_balance.can_withdraw_from_portfolio
         )
         self.buttons.append(portfolio_deposit_button)
         self.buttons.append(portfolio_withdraw_button)
@@ -190,30 +176,30 @@ class PortfolioTable:
 
             self._draw_cell(column, self.styling.BLACK, 50 + index * self.styling.CELL_WIDTH, y_offset, bgcolor=bgcolor)
 
-        # Use draw_button function to draw buttons
-        deposit_button = draw_button(
+        # Draw the Deposit and Withdraw buttons
+        self.buttons = []  # Reset the buttons list
+        deposit_button = Button(
             self.screen,
             50 + 5 * self.styling.CELL_WIDTH + (self.styling.CELL_WIDTH - self.styling.BUTTON_WIDTH) // 2,
             y_offset + (self.styling.CELL_HEIGHT - self.styling.BUTTON_HEIGHT) // 2,
-            text="Deposit",
-            asset=stock,
-            action=stock.deposit,  # Pass the function reference, not the result
-            check_func=stock.can_deposit,  # Pass the function reference, not the result
-            styling=self.styling
+            "Deposit",
+            stock,
+            self.styling,
+            action=stock.deposit,
+            check_func=stock.can_deposit
         )
-        withdraw_button = draw_button(
+        withdraw_button = Button(
             self.screen,
             50 + 6 * self.styling.CELL_WIDTH + (self.styling.CELL_WIDTH - self.styling.BUTTON_WIDTH) // 2,
             y_offset + (self.styling.CELL_HEIGHT - self.styling.BUTTON_HEIGHT) // 2,
-            text="Withdraw",
-            asset=stock,
-            action=stock.withdraw,  # Pass the function reference, not the result
-            check_func=stock.can_withdraw,  # Pass the function reference, not the result
-            styling=self.styling
+            "Withdraw",
+            stock,
+            self.styling,
+            action=stock.withdraw,
+            check_func=stock.can_withdraw
         )
-
-        deposit_button.draw(self.screen)
-        withdraw_button.draw(self.screen)
+        deposit_button.draw()
+        withdraw_button.draw()
         self.buttons.append(deposit_button)
         self.buttons.append(withdraw_button)
 
@@ -277,55 +263,45 @@ class Button:
     - check_func: function to check if the action is valid or not
     - args, kwargs: arguments and keyword arguments to be passed to the action function
     """
-    def __init__(self, x, y, width, height, text, color, hover_color, font, asset, action=None, check_func=None, *args, **kwargs):
+    def __init__(self, screen, x, y, text, asset, styling, action=None, check_func=None, *args, **kwargs):
+        self.screen = screen
         self.x = x
         self.y = y
-        self.width = width
-        self.height = height
+        self.width = styling.BUTTON_WIDTH
+        self.height = styling.BUTTON_HEIGHT
         self.text = text
-        self.color = color
-        self.hover_color = hover_color
-        self.active_color = color
-        self.font = font
+        self.active_color = styling.LIGHT_BLUE
+        self.passive_color = styling.BUTTON_BG_COLOR
+        self.color = self.passive_color
+        self.hover_color = styling.BUTTON_HOVER_COLOR
+        self.font = styling.BUTTON_FONT
         self.action = action
-        self.hovered = False
         self.disabled = False
         self.asset = asset  # associated asset object (stock or player balance)
         self.check_func = check_func  # function to check if the action is valid
         self.args = args
         self.kwargs = kwargs
+        self.changed = True
 
-    def draw(self, screen):
+    def draw(self):
         """Function to draw the button on the screen."""
-        mouse_pos = pygame.mouse.get_pos()
-        if self.x < mouse_pos[0] < self.x + self.width and self.y < mouse_pos[1] < self.y + self.height:
-            self.hovered = True
-        else:
-            self.hovered = False
-
-        if self.disabled:
-            pygame.draw.rect(screen, self.active_color, (self.x, self.y, self.width, self.height))
-        elif self.hovered:
-            pygame.draw.rect(screen, self.hover_color, (self.x, self.y, self.width, self.height))
-        else:
-            pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
-
+        pygame.draw.rect(self.screen, self.color, (self.x, self.y, self.width, self.height))
         text_surf = self.font.render(self.text, True, (0, 0, 0))
         text_rect = text_surf.get_rect(center=(self.x + self.width / 2, self.y + self.height / 2))
-        screen.blit(text_surf, text_rect)
+        self.screen.blit(text_surf, text_rect)
 
     def click(self):
         if not self.disabled:
-            print(f"Button with text '{self.text}' was clicked.")  # debug
             if self.action:
                 self.action(*self.args, **self.kwargs)
-                print(f"Executing action for button with text '{self.text}'.")  # debug
 
     def disable(self):
         self.disabled = True
+        self.color = self.passive_color
 
     def enable(self):
         self.disabled = False
+        self.color = self.active_color
 
     def perform_check(self):
         is_valid = self.check_func(*self.args, **self.kwargs) # error caused by this line

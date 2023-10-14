@@ -51,13 +51,13 @@ from strategies import Strategy
 
 # Training parameters
 NUM_EPISODES = 5000
-MAX_ROUNDS_PER_EPISODE = 10
+MAX_ROUNDS_PER_EPISODE = 5
 REPLAY_MEMORY_SIZE = int(NUM_EPISODES * MAX_ROUNDS_PER_EPISODE * 0.05)
 
 # Hyperparameters
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 GAMMA = 0.99  # Discount factor for future rewards
-LEARNING_RATE = 0.0005
+LEARNING_RATE = 0.001
 
 # Target network is a mechanism in DQN to stabilize learning.
 # The idea is to keep a separate network (with same architecture as the primary DQN) which is not updated as frequently as the primary DQN.
@@ -80,7 +80,7 @@ input_dim = len(env.reset()[0][0])
 output_dim = env.action_space.n
 
 # Neural network configurations
-hidden_sizes = [128, 256, 128, 64, 32]
+hidden_sizes = [64, 64, 64]
 policy_net1 = DQN(input_dim, hidden_sizes, output_dim).to(device)  # Primary DQN for agent 1
 target_net1 = DQN(input_dim, hidden_sizes, output_dim).to(device)  # Target DQN for agent 1
 policy_net2 = DQN(input_dim, hidden_sizes, output_dim).to(device)  # Primary DQN for agent 2
@@ -116,6 +116,7 @@ for episode in trange(NUM_EPISODES):
     observation_agent1, observation_agent2 = observations
 
     # Episode loop
+    strategy_agent2 = Strategy(env, strategy_type="always_defect")  # Or another strategy type
     for _ in range(MAX_ROUNDS_PER_EPISODE):
         # Convert observations to tensors
         state_agent1 = torch.tensor(observation_agent1, device=device, dtype=torch.float32).unsqueeze(0)
@@ -123,8 +124,23 @@ for episode in trange(NUM_EPISODES):
 
         # Select actions for both agents
         action_agent1 = select_action(state_agent1, policy_net1, steps_done)
-        action_agent2 = select_action(state_agent2, policy_net2, steps_done)
+        action_agent2 = torch.tensor(strategy_agent2.select_action(observation_agent2, model=policy_net2), device=device, dtype=torch.long).unsqueeze(0).unsqueeze(0)
         steps_done += 1
+
+        # # print for a sanity check
+        # if strategy_agent2.select_action(observation_agent2, model=policy_net2) == -1:
+        #     print(f"-------------------")
+        #     print(f"round: {env.current_round}")
+        #     print(f"sampled strategy: {strategy_agent2.sampled_strategy}")
+        #     print(f"observation_agent1: {observation_agent1}")
+        #     print(f"observation_agent2: {observation_agent2}")
+        #     print(f"state_agent1: {state_agent1}")
+        #     print(f"state_agent2: {state_agent2}")
+        #     print(f"action_agent1: {action_agent1}")
+        #     print(f"action_agent2: {action_agent2}")
+
+
+
 
         # Take a step in the environment using selected actions
         observations, (reward_agent1, reward_agent2), terminated, _, _ = env.step(action_agent1.item(),

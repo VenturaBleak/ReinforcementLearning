@@ -33,12 +33,11 @@ class GameEnv(gym.Env):
 
         # observation space
         self.observation_space = spaces.Tuple([
-            spaces.MultiDiscrete([num_actions, num_actions] * max_rounds),  # Actions history
+            spaces.MultiBinary([num_actions, num_actions] * max_rounds),  # Actions history
             spaces.MultiBinary(2 * max_rounds),  # Actions mask
-            spaces.Discrete(max_rounds),  # Current round
-            spaces.Discrete(max_rounds),  # Total rounds
-            spaces.Box(low=min_payoff, high=max_payoff, shape=(num_actions ** 2,), dtype=np.float32),  # Game params
-            spaces.Discrete(2),  # Player number (since we have 2 players for now)
+            # spaces.Discrete(max_rounds),  # Current round
+            # spaces.Discrete(max_rounds),  # Total rounds
+            # spaces.Box(low=min_payoff, high=max_payoff, shape=(num_actions ** 2,), dtype=np.float32)  # Game params
         ])
 
         self.renderer = None
@@ -67,8 +66,14 @@ class GameEnv(gym.Env):
         self.current_round = 0
 
         # Fill history with placeholders
-        self.actions_history.fill(-1)
+        self.actions_history = np.zeros((self.max_rounds, 2), dtype=int)
         self.rewards_history.fill(0)
+
+        self.agent1_avg_reward = 0
+        self.agent2_avg_reward = 0
+
+        self.agent1_cumulative_reward = 0
+        self.agent2_cumulative_reward = 0
 
         return (self._get_observation(1), self._get_observation(2)), {}
 
@@ -87,6 +92,7 @@ class GameEnv(gym.Env):
 
         # Store actions and payoffs in history
         self.actions_history[self.current_round - 1] = [action_agent1, action_agent2]
+        self.actions_mask[self.current_round - 1] = [1, 1]
         self.rewards_history[self.current_round - 1] = [self.agent1_reward, self.agent2_reward]
 
         self.terminated = self.current_round >= self.max_rounds
@@ -95,15 +101,10 @@ class GameEnv(gym.Env):
         obs_agent2 = self._get_observation(2)
 
         # episode reward
-        valid_actions = self.actions_history[:self.current_round] != -1
-        valid_actions_count = valid_actions.sum()
-        valid_payoffs = self.rewards_history[:self.current_round] != 0
-        valid_payoffs_count = valid_payoffs.sum()
-
         self.agent1_cumulative_reward += self.agent1_reward
         self.agent2_cumulative_reward += self.agent2_reward
-        self.agent1_avg_reward = self.agent1_cumulative_reward / valid_actions_count
-        self.agent2_avg_reward = self.agent2_cumulative_reward / valid_payoffs_count
+        self.agent1_avg_reward = self.agent1_cumulative_reward / self.current_round
+        self.agent2_avg_reward = self.agent2_cumulative_reward / self.current_round
 
         # total reward
         self.agent1_total_cumulative_reward += self.agent1_reward
@@ -111,34 +112,26 @@ class GameEnv(gym.Env):
         self.agent1_total_avg_reward = self.agent1_total_cumulative_reward / self.total_rounds
         self.agent2_total_avg_reward = self.agent2_total_cumulative_reward / self.total_rounds
 
+        # print for a sanity check
+        # print(f"mask: {self.actions_mask}")
+        # print(f"history: {self.actions_history}")
+
         return (obs_agent1, obs_agent2), (payoff[0], payoff[1]), self.terminated, self.truncated, {}
 
     def _get_observation(self, agent_number):
-        # Create masks based on the presence of -1 in actions_history
-        actions_mask = np.where(self.actions_history == -1, 0, 1)
-        rewards_mask = np.where(np.isnan(self.rewards_history), 0, 1)  # This should likely be adjusted to not use NaN
+        if agent_number == 1:
+            actions_hist = self.actions_history
+        else:
+            actions_hist = np.column_stack((self.actions_history[:, 1], self.actions_history[:, 0]))
 
-        payoff_matrix_list = list(self.game_modes.get_payoff_matrix().reshape(-1))
+        actions_mask_adjusted = np.column_stack(
+            (self.actions_mask[:, agent_number - 1], self.actions_mask[:, 1 - (agent_number - 1)]))
 
-        # Package the observation as a tuple
-        observation = (
-            tuple(self.actions_history.flatten()),
-            tuple(actions_mask.flatten()),
-            self.current_round,
-            self.max_rounds,
-            tuple(payoff_matrix_list),
-            agent_number
-        )
+        observation = self.flatten_observation(actions_hist, actions_mask_adjusted)
+        return observation
 
-        return self.flatten_observation(observation)
-
-    def flatten_observation(self, observation):
-        flat_list = []
-        for item in observation:
-            if isinstance(item, tuple):
-                flat_list.extend(item)
-            else:
-                flat_list.append(item)
+    def flatten_observation(self, actions_hist, actions_mask_adjusted):
+        flat_list = list(actions_hist.flatten()) + list(actions_mask_adjusted.flatten())
         return flat_list
 
     def render(self):

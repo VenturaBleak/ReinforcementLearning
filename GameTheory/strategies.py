@@ -1,5 +1,6 @@
 import torch
 import random
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Strategy:
@@ -7,57 +8,60 @@ class Strategy:
         self.env = env
         self.strategy_type = strategy_type
 
-        self.strategies = ["random", "always_defect", "always_cooperate", "model", "tit_for_tat",
-                      "grim_trigger", "pavlov", "jesus", "judas", "sample_from_dict"]
-        assert self.strategy_type in self.strategies, f"Strategy type must be one of {self.strategies}"
-
         self.strategy_probabilities = {
             "random": 0.1,
-            "always_defect": 0.1,
+            "always_defect": 0.4,
             "always_cooperate": 0.1,
             "model": 0.1,
-            "tit_for_tat": 0.2,
-            "grim_trigger": 0.1,
-            "pavlov": 0.1,
-            "jesus": 0.1,
-            "judas": 0.1
+            "tit_for_tat": 0.3,
+            # Omitted unused strategies
         }
         assert sum(self.strategy_probabilities.values()) == 1, "Probabilities must sum up to 1"
 
+        assert self.strategy_type in self.strategy_probabilities or self.strategy_type == "sample_from_dict", \
+            f"Strategy type must be one of {list(self.strategy_probabilities.keys())} or 'sample_from_dict'"
+
         if self.strategy_type == "sample_from_dict":
-            self.strategy_type = random.choices(list(self.strategy_probabilities.keys()),
-                                                weights=self.strategy_probabilities.values())[0]
+            self.sampled_strategy = self.sample_strategy()
+        else:
+            self.sampled_strategy = self.strategy_type
 
-    def select_action(self, observation, agent_num=1, model=None):
+    def select_action(self, observation, model=None):
+        # Extract last opponent action from observation based on current round number
+        if self.env.current_round == 0:
+            last_opponent_action = None
+        else:
+            last_opponent_action = observation[self.env.current_round * 2 - 1]
+
         # Tit for Tat strategy
-        if self.strategy_type == "tit_for_tat":
-            if self.env.current_round == 0:
-                return 0  # Cooperate on the first round
-
-            last_opponent_action = self.env.actions_history[self.env.current_round - 1][2 - agent_num]
-
-            print(f"current round{self.env.current_round}")
-            print(f"action history{self.env.actions_history}")
-            print(f"last opponent action {last_opponent_action}")
+        if self.sampled_strategy == "tit_for_tat":
+            if last_opponent_action is None:
+                return 0
             return last_opponent_action
 
         # Random strategy
-        elif self.strategy_type == "random":
+        elif self.sampled_strategy == "random":
             return self.env.action_space.sample()
 
         # Always defect strategy
-        elif self.strategy_type == "always_defect":
+        elif self.sampled_strategy == "always_defect":
             return 1
 
         # Always cooperate strategy
-        elif self.strategy_type == "always_cooperate":
+        elif self.sampled_strategy == "always_cooperate":
             return 0
 
         # Model strategy
-        elif self.strategy_type == "model" and model:
+        elif self.sampled_strategy == "model" and model:
             with torch.no_grad():
                 state = torch.tensor(observation, device=device, dtype=torch.float32).unsqueeze(0)
-                return model(state).argmax(dim=1).view(1, 1).squeeze(0).item()
+                selected_action = model(state).argmax(dim=1).view(1, 1).squeeze(0).item()
+                return selected_action
 
         # Default to random if no strategy matches
         return self.env.action_space.sample()
+
+    def sample_strategy(self):
+        """Function to sample strategy based on the predefined probabilities."""
+        return random.choices(list(self.strategy_probabilities.keys()),
+                              weights=self.strategy_probabilities.values())[0]

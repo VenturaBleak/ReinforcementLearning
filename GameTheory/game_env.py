@@ -24,17 +24,17 @@ class GameEnv(gym.Env):
         self.episode_counter = 1  # Initialize episode counter
 
         # Initialize static structures with placeholders
-        self.actions_history = np.full((self.max_rounds, 2), -1)
+        self.actions_history = np.zeros((self.max_rounds, 2), dtype=int)
         self.rewards_history = np.full((self.max_rounds, 2), 0)
 
         # Masks initialized with zeros
-        self.actions_mask = np.zeros((self.max_rounds, 2), dtype=int)
+        self.actions_mask = np.zeros(self.max_rounds, dtype=int)
         self.payoffs_mask = np.zeros((self.max_rounds, 2), dtype=int)
 
         # observation space
         self.observation_space = spaces.Tuple([
             spaces.MultiBinary([num_actions, num_actions] * max_rounds),  # Actions history
-            spaces.MultiBinary(2 * max_rounds),  # Actions mask
+            spaces.MultiBinary(max_rounds),  # Actions mask
             # spaces.Discrete(max_rounds),  # Current round
             # spaces.Discrete(max_rounds),  # Total rounds
             # spaces.Box(low=min_payoff, high=max_payoff, shape=(num_actions ** 2,), dtype=np.float32)  # Game params
@@ -67,6 +67,7 @@ class GameEnv(gym.Env):
 
         # Fill history with placeholders
         self.actions_history = np.zeros((self.max_rounds, 2), dtype=int)
+        self.actions_mask = np.zeros(self.max_rounds, dtype=int)
         self.rewards_history.fill(0)
 
         self.agent1_avg_reward = 0
@@ -92,7 +93,7 @@ class GameEnv(gym.Env):
 
         # Store actions and payoffs in history
         self.actions_history[self.current_round - 1] = [action_agent1, action_agent2]
-        self.actions_mask[self.current_round - 1] = [1, 1]
+        self.actions_mask[self.current_round - 1] = 1
         self.rewards_history[self.current_round - 1] = [self.agent1_reward, self.agent2_reward]
 
         self.terminated = self.current_round >= self.max_rounds
@@ -124,14 +125,12 @@ class GameEnv(gym.Env):
         else:
             actions_hist = np.column_stack((self.actions_history[:, 1], self.actions_history[:, 0]))
 
-        actions_mask_adjusted = np.column_stack(
-            (self.actions_mask[:, agent_number - 1], self.actions_mask[:, 1 - (agent_number - 1)]))
+        observation = self.flatten_observation(actions_hist, self.actions_mask)
 
-        observation = self.flatten_observation(actions_hist, actions_mask_adjusted)
         return observation
 
-    def flatten_observation(self, actions_hist, actions_mask_adjusted):
-        flat_list = list(actions_hist.flatten()) + list(actions_mask_adjusted.flatten())
+    def flatten_observation(self, actions_hist, actions_mask):
+        flat_list = list(actions_hist.flatten()) + list(actions_mask)
         return flat_list
 
     def render(self):

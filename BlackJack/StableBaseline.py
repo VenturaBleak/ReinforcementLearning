@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Total number of simulation episodes.")
     parser.add_argument("--total_timesteps", type=int, default=200000, help="Total number of time.")
     parser.add_argument("--eval_episodes", type=int, default=100, help="Total number of simulation episodes.")
-    parser.add_argument("-policy", type=str, default=True, help="Policy to use for action selection (random or policy).")
+    parser.add_argument("-policy", type=str, default=False, help="Policy to use for action selection (random or policy).")
     args = parser.parse_args()
 
     # Create the environment, using the loaded map
@@ -49,7 +49,7 @@ if __name__ == "__main__":
                 verbose=1, seed=42)
 
     # Train the agent and save it
-    model.learn(total_timesteps=args.total_timesteps, log_interval=200)
+    #model.learn(total_timesteps=args.total_timesteps, log_interval=200)
     model.save("model")
 
     # remove to demonstrate saving and loading

@@ -9,13 +9,10 @@ for _ in range(NUM_EPISODES):
     observations, _ = env.reset()
     observation_agent1, observation_agent2 = observations
     for _ in range(MAX_ROUNDS_PER_EPISODE):
-        # debug
+        # # debug
         # print("Observation agent 1: ", observation_agent1)
         # print("Observation agent 2: ", observation_agent2)
-
-        # total_dims = len(observation_agent1)  # Get the observation space for agent 1
-        # print("Total dimensions: ", total_dims)
-
+        print("Actions history: ", env.actions_history)
         action_agent1 = env.action_space.sample()
         action_agent2 = env.action_space.sample()
         observations, rewards, terminated, truncated, info = env.step(action_agent1, action_agent2)

@@ -23,7 +23,7 @@ class GameEnv(gym.Env):
         self.total_rounds = 0
         self.episode_counter = 1  # Initialize episode counter
 
-        # Initialize static structures with NaNs for data
+        # Initialize static structures with placeholders
         self.actions_history = np.full((self.max_rounds, 2), -1)
         self.rewards_history = np.full((self.max_rounds, 2), 0)
 
@@ -31,32 +31,18 @@ class GameEnv(gym.Env):
         self.actions_mask = np.zeros((self.max_rounds, 2), dtype=int)
         self.payoffs_mask = np.zeros((self.max_rounds, 2), dtype=int)
 
-        # Calculate the total dimensions for the observation space
-        total_dims = len(self.reset()[0][0])  # Get the observation space for agent 1
-        print("Total dimensions: ", total_dims)
-
         # observation space
         self.observation_space = spaces.Tuple([
-            spaces.MultiDiscrete([num_actions, num_actions] * max_rounds),  # Actions history
-            # spaces.Box(low=min_payoff, high=max_payoff, shape=(2 * max_rounds,), dtype=np.float32),  # Rewards history
+            spaces.MultiBinary([num_actions, num_actions] * max_rounds),  # Actions history
             spaces.MultiBinary(2 * max_rounds),  # Actions mask
-            # spaces.MultiBinary(2 * max_rounds),  # Rewards mask
-
-            # Only useful, if variable game params are used, including the following:
-            # payoffs
-            # actions
-            # number of total_players
-            spaces.Discrete(max_rounds),  # Current round
-            spaces.Discrete(max_rounds),  # Total rounds
-            spaces.Box(low=min_payoff, high=max_payoff, shape=(num_actions ** 2,), dtype=np.float32),  # Game params
-            spaces.Discrete(2),  # Player number (since we have 2 players for now)
-            #spaces.Discrete(2)  # Total number of players
+            # spaces.Discrete(max_rounds),  # Current round
+            # spaces.Discrete(max_rounds),  # Total rounds
+            # spaces.Box(low=min_payoff, high=max_payoff, shape=(num_actions ** 2,), dtype=np.float32)  # Game params
         ])
 
-        # Define observation space as a Discrete space with the total dimensions
-        self.observation_space = spaces.Discrete(total_dims)
-#
-        self.renderer = GameRenderer(self.game_modes)  # Pass instantiated GameModes object to GameRenderer
+        self.renderer = None
+        if render_mode == 'human':
+            self.renderer = GameRenderer(self.game_modes)  # Pass instantiated GameModes object to GameRenderer
 
         # reset after each step
         self.agent1_action = None
@@ -80,13 +66,20 @@ class GameEnv(gym.Env):
         self.current_round = 0
 
         # Fill history with placeholders
-        self.actions_history.fill(-1)
+        self.actions_history = np.zeros((self.max_rounds, 2), dtype=int)
         self.rewards_history.fill(0)
+
+        self.agent1_avg_reward = 0
+        self.agent2_avg_reward = 0
+
+        self.agent1_cumulative_reward = 0
+        self.agent2_cumulative_reward = 0
 
         return (self._get_observation(1), self._get_observation(2)), {}
 
     def step(self, action_agent1, action_agent2):
         self.current_round += 1
+        self.total_rounds += 1
 
         # get actions from both agents
         self.agent1_action = action_agent1
@@ -99,6 +92,7 @@ class GameEnv(gym.Env):
 
         # Store actions and payoffs in history
         self.actions_history[self.current_round - 1] = [action_agent1, action_agent2]
+        self.actions_mask[self.current_round - 1] = [1, 1]
         self.rewards_history[self.current_round - 1] = [self.agent1_reward, self.agent2_reward]
 
         self.terminated = self.current_round >= self.max_rounds
@@ -107,39 +101,38 @@ class GameEnv(gym.Env):
         obs_agent2 = self._get_observation(2)
 
         # episode reward
-        valid_actions = ~np.isnan(self.actions_history[:self.current_round])
-        valid_actions_count = valid_actions.sum()
-        valid_payoffs = ~np.isnan(self.rewards_history[:self.current_round])
-        valid_payoffs_count = valid_payoffs.sum()
-
         self.agent1_cumulative_reward += self.agent1_reward
         self.agent2_cumulative_reward += self.agent2_reward
-        self.agent1_avg_reward = self.agent1_cumulative_reward / valid_actions_count
-        self.agent2_avg_reward = self.agent2_cumulative_reward / valid_payoffs_count
+        self.agent1_avg_reward = self.agent1_cumulative_reward / self.current_round
+        self.agent2_avg_reward = self.agent2_cumulative_reward / self.current_round
 
         # total reward
         self.agent1_total_cumulative_reward += self.agent1_reward
         self.agent2_total_cumulative_reward += self.agent2_reward
-        self.agent1_total_avg_reward = self.agent1_total_cumulative_reward / self.current_round
-        self.agent2_total_avg_reward = self.agent2_total_cumulative_reward / self.current_round
+        self.agent1_total_avg_reward = self.agent1_total_cumulative_reward / self.total_rounds
+        self.agent2_total_avg_reward = self.agent2_total_cumulative_reward / self.total_rounds
+
+        # print for a sanity check
+        # print(f"mask: {self.actions_mask}")
+        # print(f"history: {self.actions_history}")
 
         return (obs_agent1, obs_agent2), (payoff[0], payoff[1]), self.terminated, self.truncated, {}
 
     def _get_observation(self, agent_number):
-        # Create masks based on the presence of -1 in actions_history
-        actions_mask = np.where(self.actions_history == -1, 0, 1)
-        rewards_mask = np.where(np.isnan(self.rewards_history), 0, 1)
+        if agent_number == 1:
+            actions_hist = self.actions_history
+        else:
+            actions_hist = np.column_stack((self.actions_history[:, 1], self.actions_history[:, 0]))
 
-        payoff_matrix_list = list(self.game_modes.get_payoff_matrix().reshape(-1))
+        actions_mask_adjusted = np.column_stack(
+            (self.actions_mask[:, agent_number - 1], self.actions_mask[:, 1 - (agent_number - 1)]))
 
-        # Create a flat list for all the values in the observation
-        observation = list(self.actions_history.flatten()) + \
-                      list(actions_mask.flatten()) + \
-                      [self.current_round, self.max_rounds] + \
-                      payoff_matrix_list + \
-                      [agent_number]
-
+        observation = self.flatten_observation(actions_hist, actions_mask_adjusted)
         return observation
+
+    def flatten_observation(self, actions_hist, actions_mask_adjusted):
+        flat_list = list(actions_hist.flatten()) + list(actions_mask_adjusted.flatten())
+        return flat_list
 
     def render(self):
         if self.render_mode == 'human':

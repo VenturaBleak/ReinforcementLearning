@@ -99,7 +99,7 @@ class GameRenderer:
                                 scoreboard_start_y)
 
         pygame.display.flip()
-        pygame.time.wait(200)
+        pygame.time.wait(300)
 
     def display_payoff_matrix(self, agent1_action, agent2_action, start_y):
         matrix_width = (len(self.game["action_names"]) + 1) * self.cell_width

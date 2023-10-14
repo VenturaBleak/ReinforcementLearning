@@ -47,29 +47,31 @@ from tqdm import trange
 
 from model import DQN
 from buffer import ReplayMemory
-from strategies import Strategy
+from hyperparameters import Hyperparameter
 
 # Training parameters
-NUM_EPISODES = 5000
-MAX_ROUNDS_PER_EPISODE = 10
+hyperparameter = Hyperparameter()
+NUM_EPISODES = hyperparameter.NUM_EPISODES
+MAX_ROUNDS_PER_EPISODE = hyperparameter.MAX_ROUNDS_PER_EPISODE
 REPLAY_MEMORY_SIZE = int(NUM_EPISODES * MAX_ROUNDS_PER_EPISODE * 0.05)
 
 # Hyperparameters
-BATCH_SIZE = 128
-GAMMA = 0.99  # Discount factor for future rewards
-LEARNING_RATE = 0.0005
+BATCH_SIZE = hyperparameter.BATCH_SIZE
+GAMMA = hyperparameter.GAMMA  # Discount factor for future rewards
+LEARNING_RATE = hyperparameter.LEARNING_RATE
 
 # Target network is a mechanism in DQN to stabilize learning.
 # The idea is to keep a separate network (with same architecture as the primary DQN) which is not updated as frequently as the primary DQN.
-TARGET_UPDATE = 10
+TARGET_UPDATE = hyperparameter.TARGET_UPDATE
 
 # Every SELF_PLAY_UPDATE episodes, agent 2's policy is updated to that of agent 1.
 # This is the essence of self-play where one agent constantly adapts to the policy of the other.
-SELF_PLAY_UPDATE = 50
+SELF_PLAY_UPDATE = hyperparameter.SELF_PLAY_UPDATE
 
-EPS_START = 0.9
-EPS_END = 0.05
-EPS_DECAY = NUM_EPISODES * 0.8  # Decaying rate for epsilon-greedy action selection
+# Epsilon-greedy strategy parameters
+EPS_START = hyperparameter.EPS_START  # Starting value of epsilon
+EPS_END = hyperparameter.EPS_END  # Ending value of epsilon
+EPS_DECAY = hyperparameter.EPS_DECAY  # Rate at which epsilon decays
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Environment setup
@@ -80,7 +82,7 @@ input_dim = len(env.reset()[0][0])
 output_dim = env.action_space.n
 
 # Neural network configurations
-hidden_sizes = [128, 256, 128, 64, 32]
+hidden_sizes = hyperparameter.HIDDEN_SIZES
 policy_net1 = DQN(input_dim, hidden_sizes, output_dim).to(device)  # Primary DQN for agent 1
 target_net1 = DQN(input_dim, hidden_sizes, output_dim).to(device)  # Target DQN for agent 1
 policy_net2 = DQN(input_dim, hidden_sizes, output_dim).to(device)  # Primary DQN for agent 2
